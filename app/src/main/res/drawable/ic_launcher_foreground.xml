@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Deadline circular ring accent (safe zone centered around 54,54) -->
+    <path
+        android:strokeColor="#4E75FF"
+        android:strokeWidth="4"
+        android:strokeLineCap="round"
+        android:pathData="M54,28 A26,26 0 1,1 28,54" />
+    <!-- Clock minute marker at top -->
+    <path
+        android:fillColor="#38E1FF"
+        android:pathData="M52,24h4v6h-4z" />
+    <!-- Bold task checkmark -->
+    <path
+        android:fillColor="#38E1FF"
+        android:pathData="M43.5,53.5 L40.5,50.5 C39.5,49.5 37.9,49.5 36.9,50.5 C35.9,51.5 35.9,53.1 36.9,54.1 L41.7,58.9 C42.7,59.9 44.3,59.9 45.3,58.9 L67.1,37.1 C68.1,36.1 68.1,34.5 67.1,33.5 C66.1,32.5 64.5,32.5 63.5,33.5 L43.5,53.5 Z" />
+    <!-- Speed/flow dash accents -->
+    <path
+        android:strokeColor="#FFFFFF"
+        android:strokeWidth="3"
+        android:strokeLineCap="round"
+        android:pathData="M40,68h28 M48,76h12" />
+</vector>

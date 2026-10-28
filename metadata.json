@@ -1,0 +1,6 @@
+{
+  "name": "TaskFlow",
+  "description": "Premium personal task and deadline manager with smart countdowns, persistent alerts, home-screen widget, productivity analytics, and achievements.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
