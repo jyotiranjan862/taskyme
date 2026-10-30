@@ -14,10 +14,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -25,11 +23,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
@@ -44,52 +42,49 @@ import com.example.ui.theme.IndigoPrimary
 import com.example.ui.theme.MintSecondary
 
 @Composable
-fun DailyCompletionsBarChart(
+fun TasksCompletedLineChart(
     data: List<DayCompletionData>,
+    peakDayLabel: String,
     modifier: Modifier = Modifier
 ) {
     if (data.isEmpty()) {
         Box(
             modifier = modifier
                 .fillMaxWidth()
-                .height(180.dp),
+                .height(150.dp),
             contentAlignment = Alignment.Center
         ) {
-            Text("No activity recorded in this period", style = MaterialTheme.typography.bodyMedium)
+            Text("No activity recorded yet", style = MaterialTheme.typography.bodySmall)
         }
         return
     }
 
     val maxVal = remember(data) {
         val max = data.maxOfOrNull { it.completedCount } ?: 1
-        if (max == 0) 4 else (max + 1)
+        if (max == 0) 2 else max
     }
 
     val textPaintColor = MaterialTheme.colorScheme.onSurfaceVariant.toArgb()
-    val todayBarColor = CyanAccent
-    val normalBarColor = IndigoPrimary
-    val barBaseColor = MaterialTheme.colorScheme.surfaceVariant
+    val lineColor = IndigoPrimary
+    val animProgress = remember { Animatable(0f) }
 
-    val animationProgress = remember { Animatable(0f) }
     LaunchedEffect(data) {
-        animationProgress.snapTo(0f)
-        animationProgress.animateTo(1f, animationSpec = tween(600))
+        animProgress.snapTo(0f)
+        animProgress.animateTo(1f, animationSpec = tween(700))
     }
 
     Canvas(
         modifier = modifier
             .fillMaxWidth()
-            .height(180.dp)
-            .padding(top = 10.dp, bottom = 4.dp)
+            .height(150.dp)
+            .padding(top = 18.dp, bottom = 4.dp, start = 4.dp, end = 4.dp)
     ) {
-        val width = size.width
-        val height = size.height
-        val bottomLabelSpace = 24.dp.toPx()
-        val chartHeight = height - bottomLabelSpace
-        val barCount = data.size
-        val totalSpacing = width * 0.25f
-        val barWidth = (width - totalSpacing) / barCount.coerceAtLeast(1)
-        val spaceBetween = totalSpacing / (barCount + 1).coerceAtLeast(1)
+        val w = size.width
+        val h = size.height
+        val bottomSpace = 22.dp.toPx()
+        val leftYSpace = 18.dp.toPx()
+        val plotW = w - leftYSpace
+        val plotH = h - bottomSpace
 
         val paint = android.graphics.Paint().apply {
             color = textPaintColor
@@ -98,151 +93,216 @@ fun DailyCompletionsBarChart(
             isAntiAlias = true
         }
 
-        // Draw background horizontal reference lines
-        val lineY1 = chartHeight * 0.25f
-        val lineY2 = chartHeight * 0.75f
-        drawLine(
-            color = Color.Gray.copy(alpha = 0.15f),
-            start = Offset(0f, lineY1),
-            end = Offset(width, lineY1),
-            strokeWidth = 1.dp.toPx()
-        )
-        drawLine(
-            color = Color.Gray.copy(alpha = 0.15f),
-            start = Offset(0f, lineY2),
-            end = Offset(width, lineY2),
-            strokeWidth = 1.dp.toPx()
-        )
+        val yPaint = android.graphics.Paint().apply {
+            color = textPaintColor
+            textSize = 9.dp.toPx()
+            textAlign = android.graphics.Paint.Align.RIGHT
+            isAntiAlias = true
+        }
 
-        data.forEachIndexed { index, item ->
-            val left = spaceBetween + index * (barWidth + spaceBetween)
-            val barHeightFraction = (item.completedCount.toFloat() / maxVal.toFloat()) * animationProgress.value
-            val barH = chartHeight * barHeightFraction
-            val top = chartHeight - barH
-
-            // Bar background slot
-            drawRoundRect(
-                color = barBaseColor.copy(alpha = 0.4f),
-                topLeft = Offset(left, 0f),
-                size = Size(barWidth, chartHeight),
-                cornerRadius = CornerRadius(barWidth / 2, barWidth / 2)
+        // Draw Y Axis labels (0, 1, 2 or max)
+        val ySteps = listOf(0, (maxVal / 2).coerceAtLeast(1), maxVal)
+        ySteps.forEach { step ->
+            val yPos = plotH - (step.toFloat() / maxVal.toFloat()) * plotH
+            drawContext.canvas.nativeCanvas.drawText(
+                step.toString(),
+                leftYSpace - 6.dp.toPx(),
+                yPos + 3.dp.toPx(),
+                yPaint
             )
+            // Subtle dotted/solid guideline
+            drawLine(
+                color = Color.Gray.copy(alpha = 0.12f),
+                start = Offset(leftYSpace, yPos),
+                end = Offset(w, yPos),
+                strokeWidth = 1.dp.toPx()
+            )
+        }
 
-            // Animated completed value bar
-            if (barH > 0f) {
-                val brush = if (item.isToday) {
-                    Brush.verticalGradient(
-                        colors = listOf(CyanAccent, IndigoPrimary),
-                        startY = top,
-                        endY = chartHeight
-                    )
-                } else {
-                    Brush.verticalGradient(
-                        colors = listOf(normalBarColor, normalBarColor.copy(alpha = 0.7f)),
-                        startY = top,
-                        endY = chartHeight
-                    )
-                }
+        val n = data.size
+        val xStep = plotW / (n - 1).coerceAtLeast(1)
 
-                drawRoundRect(
-                    brush = brush,
-                    topLeft = Offset(left, top),
-                    size = Size(barWidth, barH),
-                    cornerRadius = CornerRadius(barWidth / 2, barWidth / 2)
-                )
+        val points = data.mapIndexed { idx, item ->
+            val x = leftYSpace + idx * xStep
+            val yFraction = (item.completedCount.toFloat() / maxVal.toFloat()) * animProgress.value
+            val y = plotH - yFraction * plotH
+            Offset(x, y)
+        }
 
-                // Value label on top of bar if count > 0
-                if (item.completedCount > 0) {
-                    drawContext.canvas.nativeCanvas.drawText(
-                        item.completedCount.toString(),
-                        left + barWidth / 2,
-                        (top - 4.dp.toPx()).coerceAtLeast(10.dp.toPx()),
-                        paint
-                    )
-                }
+        // Build smooth curved path
+        val path = Path()
+        val fillPath = Path()
+
+        if (points.isNotEmpty()) {
+            path.moveTo(points[0].x, points[0].y)
+            fillPath.moveTo(points[0].x, plotH)
+            fillPath.lineTo(points[0].x, points[0].y)
+
+            for (i in 0 until points.size - 1) {
+                val p0 = points[i]
+                val p1 = points[i + 1]
+                val controlX = (p0.x + p1.x) / 2
+                path.cubicTo(controlX, p0.y, controlX, p1.y, p1.x, p1.y)
+                fillPath.cubicTo(controlX, p0.y, controlX, p1.y, p1.x, p1.y)
             }
 
-            // Day label below bar
+            fillPath.lineTo(points.last().x, plotH)
+            fillPath.close()
+
+            // Fill gradient below line
+            drawPath(
+                path = fillPath,
+                brush = Brush.verticalGradient(
+                    colors = listOf(lineColor.copy(alpha = 0.18f), Color.Transparent),
+                    startY = 0f,
+                    endY = plotH
+                )
+            )
+
+            // Draw line
+            drawPath(
+                path = path,
+                color = lineColor,
+                style = Stroke(width = 3.dp.toPx(), cap = StrokeCap.Round)
+            )
+        }
+
+        // Draw points, tooltips and X-axis labels
+        var peakPoint: Offset? = null
+        var peakVal = 0
+
+        data.forEachIndexed { idx, item ->
+            val pt = points[idx]
+            // X-axis label
             drawContext.canvas.nativeCanvas.drawText(
                 item.dayLabel,
-                left + barWidth / 2,
-                height - 4.dp.toPx(),
+                pt.x,
+                h - 2.dp.toPx(),
                 paint
+            )
+
+            if (item.completedCount > 0 && item.completedCount >= peakVal) {
+                peakVal = item.completedCount
+                peakPoint = pt
+            }
+        }
+
+        // Peak indicator bubble matching Screen 4 ("1 done")
+        peakPoint?.let { pt ->
+            drawCircle(
+                color = Color.White,
+                radius = 5.dp.toPx(),
+                center = pt
+            )
+            drawCircle(
+                color = lineColor,
+                radius = 3.5.dp.toPx(),
+                center = pt
+            )
+
+            // Tooltip bubble
+            val bubbleText = "$peakVal done"
+            val bubbleW = 44.dp.toPx()
+            val bubbleH = 18.dp.toPx()
+            val bubbleX = (pt.x - bubbleW / 2).coerceIn(leftYSpace, w - bubbleW)
+            val bubbleY = pt.y - bubbleH - 8.dp.toPx()
+
+            drawRoundRect(
+                color = lineColor.copy(alpha = 0.15f),
+                topLeft = Offset(bubbleX, bubbleY),
+                size = Size(bubbleW, bubbleH),
+                cornerRadius = androidx.compose.ui.geometry.CornerRadius(bubbleH / 2)
+            )
+
+            val bubblePaint = android.graphics.Paint().apply {
+                color = lineColor.toArgb()
+                textSize = 9.dp.toPx()
+                textAlign = android.graphics.Paint.Align.CENTER
+                typeface = android.graphics.Typeface.DEFAULT_BOLD
+                isAntiAlias = true
+            }
+
+            drawContext.canvas.nativeCanvas.drawText(
+                bubbleText,
+                bubbleX + bubbleW / 2,
+                bubbleY + bubbleH / 2 + 3.dp.toPx(),
+                bubblePaint
             )
         }
     }
 }
 
 @Composable
-fun CompletionRateRing(
-    percentage: Float,
-    label: String,
+fun CategoryDonutChartCard(
+    categories: List<CategoryShareData>,
+    totalTasks: Int,
     modifier: Modifier = Modifier
 ) {
-    val animatedProgress = remember { Animatable(0f) }
-    LaunchedEffect(percentage) {
-        animatedProgress.snapTo(0f)
-        animatedProgress.animateTo(percentage / 100f, animationSpec = tween(800))
-    }
-
-    val primaryColor = IndigoPrimary
-    val trackColor = MaterialTheme.colorScheme.surfaceVariant
-
-    Column(
-        horizontalAlignment = Alignment.CenterHorizontally,
+    Row(
         modifier = modifier
+            .fillMaxWidth()
+            .padding(vertical = 4.dp),
+        verticalAlignment = Alignment.CenterVertically
     ) {
-        Box(contentAlignment = Alignment.Center) {
+        // Left: Donut Chart with total count in center
+        Box(
+            modifier = Modifier.size(100.dp),
+            contentAlignment = Alignment.Center
+        ) {
             Canvas(modifier = Modifier.size(90.dp)) {
-                val strokeWidth = 8.dp.toPx()
-                // Track
-                drawArc(
-                    color = trackColor,
-                    startAngle = 135f,
-                    sweepAngle = 270f,
-                    useCenter = false,
-                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-                )
-                // Progress
-                drawArc(
-                    brush = Brush.linearGradient(listOf(CyanAccent, primaryColor)),
-                    startAngle = 135f,
-                    sweepAngle = 270f * animatedProgress.value.coerceIn(0f, 1f),
-                    useCenter = false,
-                    style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
-                )
+                val strokeWidth = 10.dp.toPx()
+                val centerOffset = Offset(size.width / 2, size.height / 2)
+                val radius = (size.minDimension - strokeWidth) / 2
+
+                if (categories.isEmpty() || categories.all { it.totalCount == 0 }) {
+                    drawCircle(
+                        color = Color.LightGray.copy(alpha = 0.3f),
+                        style = Stroke(strokeWidth)
+                    )
+                } else {
+                    var startAngle = -90f
+                    val total = categories.sumOf { it.totalCount }.coerceAtLeast(1)
+
+                    categories.forEach { cat ->
+                        val sweep = (cat.totalCount.toFloat() / total.toFloat()) * 360f
+                        val color = try {
+                            Color(android.graphics.Color.parseColor(cat.colorHex))
+                        } catch (_: Exception) {
+                            IndigoPrimary
+                        }
+
+                        if (sweep > 0f) {
+                            drawArc(
+                                color = color,
+                                startAngle = startAngle,
+                                sweepAngle = sweep - 2f, // subtle gap
+                                useCenter = false,
+                                style = Stroke(width = strokeWidth, cap = StrokeCap.Round)
+                            )
+                            startAngle += sweep
+                        }
+                    }
+                }
             }
+
             Column(horizontalAlignment = Alignment.CenterHorizontally) {
                 Text(
-                    text = "${percentage.toInt()}%",
-                    style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold),
+                    text = totalTasks.toString(),
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 20.sp
+                    ),
                     color = MaterialTheme.colorScheme.onSurface
                 )
             }
         }
-        Spacer(modifier = Modifier.height(4.dp))
-        Text(
-            text = label,
-            fontSize = 11.sp,
-            color = MaterialTheme.colorScheme.onSurfaceVariant
-        )
-    }
-}
 
-@Composable
-fun CategoryBreakdownBar(
-    categories: List<CategoryShareData>,
-    modifier: Modifier = Modifier
-) {
-    if (categories.isEmpty()) return
+        Spacer(modifier = Modifier.width(20.dp))
 
-    Column(modifier = modifier.fillMaxWidth()) {
-        // Stacked Progress Bar
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .height(10.dp)
-                .clip(RoundedCornerShape(5.dp))
+        // Right: Category legend list matching Screen 4
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(6.dp)
         ) {
             categories.forEach { cat ->
                 val color = try {
@@ -250,48 +310,33 @@ fun CategoryBreakdownBar(
                 } catch (_: Exception) {
                     IndigoPrimary
                 }
-                Box(
-                    modifier = Modifier
-                        .weight(cat.percentage.coerceAtLeast(1f))
-                        .height(10.dp)
-                        .background(color)
-                )
-            }
-        }
 
-        Spacer(modifier = Modifier.height(12.dp))
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Box(
+                            modifier = Modifier
+                                .size(8.dp)
+                                .clip(RoundedCornerShape(2.dp))
+                                .background(color)
+                        )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        Text(
+                            text = cat.categoryName,
+                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
+                    }
 
-        // Legend list
-        categories.forEach { cat ->
-            val color = try {
-                Color(android.graphics.Color.parseColor(cat.colorHex))
-            } catch (_: Exception) {
-                IndigoPrimary
-            }
-
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 3.dp)
-            ) {
-                Box(
-                    modifier = Modifier
-                        .size(10.dp)
-                        .clip(CircleShape)
-                        .background(color)
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = cat.categoryName,
-                    style = MaterialTheme.typography.bodyMedium,
-                    modifier = Modifier.weight(1f)
-                )
-                Text(
-                    text = "${cat.completedCount}/${cat.totalCount} (${cat.percentage.toInt()}%)",
-                    style = MaterialTheme.typography.bodySmall.copy(fontWeight = FontWeight.Medium),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant
-                )
+                    Text(
+                        text = "${cat.completedCount}/${cat.totalCount}",
+                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
             }
         }
     }

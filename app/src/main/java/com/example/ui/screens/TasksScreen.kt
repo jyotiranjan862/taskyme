@@ -85,6 +85,8 @@ fun TasksScreen(
     onEditTask: (TaskItem) -> Unit,
     onRescheduleTask: (taskId: Long) -> Unit,
     onDeleteTask: (taskId: Long) -> Unit,
+    onRestoreTask: ((taskId: Long) -> Unit)? = null,
+    onEmptyArchive: (() -> Unit)? = null,
     onCreateTaskClick: () -> Unit,
     onManageCategoriesClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -297,9 +299,14 @@ fun TasksScreen(
                 horizontalArrangement = Arrangement.spacedBy(6.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Task state tabs
+                // Task state tabs: Tasks, Completed, Archive
                 items(TaskFilter.entries) { filter ->
                     val isSelected = uiState.selectedFilter == filter
+                    val countText = when (filter) {
+                        TaskFilter.TASKS -> if (uiState.activeTaskCount > 0) " (${uiState.activeTaskCount})" else ""
+                        TaskFilter.COMPLETED -> if (uiState.completedTaskCount > 0) " (${uiState.completedTaskCount})" else ""
+                        TaskFilter.ARCHIVE -> if (uiState.archivedTaskCount > 0) " (${uiState.archivedTaskCount})" else ""
+                    }
                     Surface(
                         shape = RoundedCornerShape(8.dp),
                         color = if (isSelected) IndigoPrimary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
@@ -312,22 +319,19 @@ fun TasksScreen(
                             modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
                         ) {
                             Text(
-                                text = filter.title,
+                                text = "${filter.title}$countText",
                                 fontSize = 11.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                 color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
                             )
-                            if (filter == TaskFilter.OVERDUE) {
-                                val overdueCount = uiState.rawTasks.count { it.isOverdue }
-                                if (overdueCount > 0) {
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Box(
-                                        modifier = Modifier
-                                            .size(6.dp)
-                                            .clip(CircleShape)
-                                            .background(if (isSelected) Color.White else PriorityUrgent)
-                                    )
-                                }
+                            if (filter == TaskFilter.TASKS && uiState.lateTaskCount > 0) {
+                                Spacer(modifier = Modifier.width(5.dp))
+                                Box(
+                                    modifier = Modifier
+                                        .size(6.dp)
+                                        .clip(CircleShape)
+                                        .background(if (isSelected) Color.White else PriorityUrgent)
+                                )
                             }
                         }
                     }
@@ -401,9 +405,9 @@ fun TasksScreen(
                 verticalArrangement = Arrangement.spacedBy(6.dp),
                 contentPadding = PaddingValues(top = 6.dp, bottom = 80.dp)
             ) {
-                // Next deadline hero card (minimal banner)
+                // Next deadline hero card (minimal banner in Tasks tab)
                 if (uiState.nextDeadlineTask != null &&
-                    (uiState.selectedFilter == TaskFilter.ALL || uiState.selectedFilter == TaskFilter.TODAY || uiState.selectedFilter == TaskFilter.UPCOMING) &&
+                    uiState.selectedFilter == TaskFilter.TASKS &&
                     uiState.searchQuery.isBlank() &&
                     uiState.selectedCategoryId == null
                 ) {
@@ -415,6 +419,36 @@ fun TasksScreen(
                             onCardClick = { onEditTask(it) }
                         )
                         Spacer(modifier = Modifier.height(2.dp))
+                    }
+                }
+
+                // Archive header banner
+                if (uiState.selectedFilter == TaskFilter.ARCHIVE && uiState.filteredTasks.isNotEmpty()) {
+                    item(key = "archive_header_banner") {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(vertical = 4.dp),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
+                        ) {
+                            Text(
+                                text = "Swipe right to restore, or left to delete forever.",
+                                fontSize = 11.sp,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
+                            if (onEmptyArchive != null) {
+                                Text(
+                                    text = "Empty Archive",
+                                    fontSize = 11.sp,
+                                    fontWeight = FontWeight.Bold,
+                                    color = PriorityUrgent,
+                                    modifier = Modifier
+                                        .clickable { onEmptyArchive() }
+                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                )
+                            }
+                        }
                     }
                 }
 
@@ -436,9 +470,8 @@ fun TasksScreen(
                             Text(
                                 text = when (uiState.selectedFilter) {
                                     TaskFilter.COMPLETED -> "No completed tasks yet"
-                                    TaskFilter.OVERDUE -> "No overdue tasks"
-                                    TaskFilter.TODAY -> "No tasks due today"
-                                    else -> "No tasks"
+                                    TaskFilter.ARCHIVE -> "Archive is empty\nRemoved tasks will appear here"
+                                    TaskFilter.TASKS -> "All caught up!\nTap + to add a task"
                                 },
                                 style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
@@ -455,7 +488,8 @@ fun TasksScreen(
                             },
                             onEdit = { onEditTask(taskItem) },
                             onReschedule = { onRescheduleTask(taskItem.task.id) },
-                            onDelete = { onDeleteTask(taskItem.task.id) }
+                            onDelete = { onDeleteTask(taskItem.task.id) },
+                            onRestore = { onRestoreTask?.invoke(taskItem.task.id) }
                         )
                     }
                 }

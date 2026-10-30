@@ -25,7 +25,7 @@ data class TaskItem(
 
     val isOverdue: Boolean
         get() {
-            if (task.isCompleted) return false
+            if (task.isCompleted || task.isArchived) return false
             val deadline = task.deadlineTimestamp ?: return false
             return System.currentTimeMillis() > deadline
         }

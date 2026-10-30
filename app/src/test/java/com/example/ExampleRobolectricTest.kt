@@ -68,4 +68,32 @@ class ExampleRobolectricTest {
         assertEquals(1, summary.totalOverdue)
         assertTrue(summary.onTimeCompletionRate > 0f)
     }
+
+    @Test
+    fun `task filter and archive state verify overdue calculation`() {
+        val now = System.currentTimeMillis()
+        val overdueActiveTask = TaskItem(
+            task = TaskEntity(
+                id = 10,
+                title = "Late report",
+                deadlineTimestamp = now - 60000,
+                isCompleted = false,
+                isArchived = false
+            ),
+            category = null
+        )
+        val overdueArchivedTask = TaskItem(
+            task = TaskEntity(
+                id = 11,
+                title = "Old archived task",
+                deadlineTimestamp = now - 60000,
+                isCompleted = false,
+                isArchived = true
+            ),
+            category = null
+        )
+
+        assertTrue(overdueActiveTask.isOverdue)
+        org.junit.Assert.assertFalse(overdueArchivedTask.isOverdue)
+    }
 }

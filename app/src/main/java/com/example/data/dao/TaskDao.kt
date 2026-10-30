@@ -20,7 +20,7 @@ interface TaskDao {
     fun getAllTasksWithSubtasksFlow(): Flow<List<TaskWithSubtasks>>
 
     @Transaction
-    @Query("SELECT * FROM tasks WHERE isCompleted = 0 ORDER BY CASE WHEN deadlineTimestamp IS NULL THEN 1 ELSE 0 END, deadlineTimestamp ASC, createdAt DESC")
+    @Query("SELECT * FROM tasks WHERE isCompleted = 0 AND isArchived = 0 ORDER BY CASE WHEN deadlineTimestamp IS NULL THEN 1 ELSE 0 END, deadlineTimestamp ASC, createdAt DESC")
     fun getPendingTasksWithSubtasksFlow(): Flow<List<TaskWithSubtasks>>
 
     @Transaction
@@ -34,7 +34,7 @@ interface TaskDao {
     suspend fun getAllTasksSync(): List<TaskEntity>
 
     @Transaction
-    @Query("SELECT * FROM tasks WHERE isCompleted = 0 AND deadlineTimestamp IS NOT NULL ORDER BY deadlineTimestamp ASC LIMIT 1")
+    @Query("SELECT * FROM tasks WHERE isCompleted = 0 AND isArchived = 0 AND deadlineTimestamp IS NOT NULL ORDER BY deadlineTimestamp ASC LIMIT 1")
     suspend fun getNextUpcomingDeadlineSync(): TaskWithSubtasks?
 
     @Insert(onConflict = OnConflictStrategy.REPLACE)
@@ -51,6 +51,12 @@ interface TaskDao {
 
     @Query("UPDATE tasks SET isCompleted = :isCompleted, completedAt = :completedAt, updatedAt = :updatedAt WHERE id = :id")
     suspend fun updateTaskCompletion(id: Long, isCompleted: Boolean, completedAt: Long?, updatedAt: Long = System.currentTimeMillis())
+
+    @Query("UPDATE tasks SET isArchived = :isArchived, updatedAt = :updatedAt WHERE id = :id")
+    suspend fun updateTaskArchived(id: Long, isArchived: Boolean, updatedAt: Long = System.currentTimeMillis())
+
+    @Query("DELETE FROM tasks WHERE isArchived = 1")
+    suspend fun emptyArchive()
 
     @Query("UPDATE tasks SET deadlineTimestamp = :deadline, hasSpecificTime = :hasSpecificTime, updatedAt = :updatedAt WHERE id = :id")
     suspend fun rescheduleTask(id: Long, deadline: Long?, hasSpecificTime: Boolean, updatedAt: Long = System.currentTimeMillis())

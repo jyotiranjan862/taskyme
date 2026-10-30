@@ -19,16 +19,11 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ArrowDownward
-import androidx.compose.material.icons.filled.ArrowUpward
-import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material.icons.filled.LocalFireDepartment
-import androidx.compose.material.icons.filled.PendingActions
-import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -36,242 +31,269 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.ui.analytics.AnalyticsPeriodSummary
 import com.example.ui.analytics.AnalyticsTimeframe
-import com.example.ui.components.CategoryBreakdownBar
-import com.example.ui.components.CompletionRateRing
-import com.example.ui.components.DailyCompletionsBarChart
+import com.example.ui.components.CategoryDonutChartCard
+import com.example.ui.components.TasksCompletedLineChart
 import com.example.ui.theme.CyanAccent
 import com.example.ui.theme.IndigoPrimary
 import com.example.ui.theme.MintSecondary
-import com.example.ui.theme.PriorityLow
-import com.example.ui.theme.PriorityUrgent
 
 @Composable
 fun AnalyticsScreen(
     summary: AnalyticsPeriodSummary?,
     currentTimeframe: AnalyticsTimeframe,
     onSelectTimeframe: (AnalyticsTimeframe) -> Unit,
+    onCreateTaskClick: () -> Unit,
     modifier: Modifier = Modifier
 ) {
     if (summary == null) return
 
-    Column(
-        modifier = modifier
-            .fillMaxSize()
-            .verticalScroll(rememberScrollState())
-            .padding(horizontal = 18.dp)
-            .padding(top = 12.dp, bottom = 80.dp)
-    ) {
-        // Minimal Screen Header
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically
-        ) {
-            Text(
-                text = "Analytics",
-                style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold, fontSize = 20.sp),
-                color = MaterialTheme.colorScheme.onBackground
-            )
+    val totalTasks = summary.totalCompleted + summary.totalPending
 
-            // Period comparison badge
-            val isPositive = summary.periodCompletionChangePercent >= 0
-            Surface(
-                shape = RoundedCornerShape(6.dp),
-                color = if (isPositive) PriorityLow.copy(alpha = 0.12f) else PriorityUrgent.copy(alpha = 0.12f)
-            ) {
-                Row(
-                    verticalAlignment = Alignment.CenterVertically,
-                    modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp)
-                ) {
-                    Icon(
-                        imageVector = if (isPositive) Icons.Default.ArrowUpward else Icons.Default.ArrowDownward,
-                        contentDescription = null,
-                        tint = if (isPositive) PriorityLow else PriorityUrgent,
-                        modifier = Modifier.size(11.dp)
-                    )
-                    Spacer(modifier = Modifier.width(3.dp))
-                    Text(
-                        text = "${if (isPositive) "+" else ""}${summary.periodCompletionChangePercent.toInt()}%",
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Bold,
-                        color = if (isPositive) PriorityLow else PriorityUrgent
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(10.dp))
-
-        // Timeframe selector
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(6.dp)
-        ) {
-            AnalyticsTimeframe.entries.forEach { tf ->
-                val isSelected = currentTimeframe == tf
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = if (isSelected) IndigoPrimary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                    modifier = Modifier
-                        .clickable { onSelectTimeframe(tf) }
-                        .testTag("timeframe_chip_${tf.name}")
-                ) {
-                    Text(
-                        text = tf.label,
-                        fontSize = 11.sp,
-                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                        color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
-                    )
-                }
-            }
-        }
-
-        Spacer(modifier = Modifier.height(12.dp))
-
-        // Efficiency overview with rings
-        Surface(
-            shape = RoundedCornerShape(14.dp),
-            color = MaterialTheme.colorScheme.surface,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Row(
+    Scaffold(
+        floatingActionButton = {
+            FloatingActionButton(
+                onClick = onCreateTaskClick,
+                containerColor = IndigoPrimary,
+                contentColor = Color.White,
+                shape = CircleShape,
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 12.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly,
+                    .padding(bottom = 12.dp)
+                    .testTag("analytics_create_fab")
+            ) {
+                Icon(
+                    imageVector = Icons.Default.Add,
+                    contentDescription = "New Task",
+                    modifier = Modifier.size(24.dp)
+                )
+            }
+        },
+        containerColor = MaterialTheme.colorScheme.background,
+        modifier = modifier.fillMaxSize()
+    ) { innerPadding ->
+        Column(
+            modifier = Modifier
+                .fillMaxSize()
+                .padding(innerPadding)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 18.dp)
+                .padding(top = 10.dp, bottom = 80.dp)
+        ) {
+            // Header matching Screen 4 mockup (Analytics  •  +100%)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                CompletionRateRing(
-                    percentage = summary.completionRate,
-                    label = "Completion"
+                Text(
+                    text = "Analytics",
+                    style = MaterialTheme.typography.headlineSmall.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 22.sp
+                    ),
+                    color = MaterialTheme.colorScheme.onBackground
                 )
-                CompletionRateRing(
-                    percentage = summary.onTimeCompletionRate,
-                    label = "On-Time"
+
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MintSecondary.copy(alpha = 0.12f)
+                ) {
+                    val isPositive = summary.periodCompletionChangePercent >= 0
+                    Text(
+                        text = "${if (isPositive) "+" else ""}${summary.periodCompletionChangePercent.toInt()}%",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        color = MintSecondary,
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp)
+                    )
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Timeframe Selector Tabs (7 Days, 30 Days, Month, All)
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                AnalyticsTimeframe.entries.forEach { tf ->
+                    val isSelected = currentTimeframe == tf
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = if (isSelected) IndigoPrimary else MaterialTheme.colorScheme.surface,
+                        border = if (!isSelected) BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)) else null,
+                        modifier = Modifier
+                            .weight(1f)
+                            .clickable { onSelectTimeframe(tf) }
+                            .testTag("timeframe_tab_${tf.name}")
+                    ) {
+                        Box(
+                            contentAlignment = Alignment.Center,
+                            modifier = Modifier.padding(vertical = 7.dp)
+                        ) {
+                            Text(
+                                text = tf.label,
+                                fontSize = 12.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+                }
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // 3-Stat Cards Row matching Screen 4 mockup
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            ) {
+                MetricCardWithAccent(
+                    title = "Completion",
+                    value = "${summary.completionRate.toInt()}%",
+                    accentColor = Color(0xFF3B82F6),
+                    modifier = Modifier.weight(1f)
+                )
+
+                MetricCardWithAccent(
+                    title = "On-time",
+                    value = "${summary.onTimeCompletionRate.toInt()}%",
+                    accentColor = IndigoPrimary,
+                    modifier = Modifier.weight(1f)
+                )
+
+                MetricCardWithAccent(
+                    title = "Streak",
+                    value = "${summary.currentStreak} day${if (summary.currentStreak == 1) "" else "s"}",
+                    accentColor = MintSecondary,
+                    modifier = Modifier.weight(1f)
                 )
             }
-        }
 
-        Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-        // Minimal KPI tiles
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp)
-        ) {
-            MinimalStatTile(
-                icon = Icons.Default.CheckCircle,
-                tint = MintSecondary,
-                title = "Done",
-                value = summary.totalCompleted.toString(),
-                modifier = Modifier.weight(1f)
-            )
-            MinimalStatTile(
-                icon = Icons.Default.LocalFireDepartment,
-                tint = CyanAccent,
-                title = "Streak",
-                value = "${summary.currentStreak}d",
-                modifier = Modifier.weight(1f)
-            )
-            MinimalStatTile(
-                icon = Icons.Default.PendingActions,
-                tint = IndigoPrimary,
-                title = "Pending",
-                value = summary.totalPending.toString(),
-                modifier = Modifier.weight(1f)
-            )
-            MinimalStatTile(
-                icon = Icons.Default.Speed,
-                tint = Color(0xFFFFB800),
-                title = "Peak",
-                value = summary.mostProductiveDay.take(3),
-                modifier = Modifier.weight(1f)
-            )
-        }
+            // "Tasks completed" Smooth Curved Line Chart Card matching Screen 4 mockup
+            Surface(
+                shape = RoundedCornerShape(18.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)),
+                tonalElevation = 1.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "Tasks completed",
+                            style = MaterialTheme.typography.bodyMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 14.sp
+                            ),
+                            color = MaterialTheme.colorScheme.onSurface
+                        )
 
-        Spacer(modifier = Modifier.height(12.dp))
+                        Text(
+                            text = "Peak day: ${summary.mostProductiveDay.take(3)}",
+                            fontSize = 11.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                        )
+                    }
 
-        // Daily Activity Bar Chart
-        Surface(
-            shape = RoundedCornerShape(14.dp),
-            color = MaterialTheme.colorScheme.surface,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                Text(
-                    text = "Daily Activity",
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
-                )
-                Spacer(modifier = Modifier.height(6.dp))
-                DailyCompletionsBarChart(data = summary.dailyCompletions)
+                    Spacer(modifier = Modifier.height(8.dp))
+
+                    TasksCompletedLineChart(
+                        data = summary.dailyCompletions,
+                        peakDayLabel = summary.mostProductiveDay
+                    )
+                }
             }
-        }
 
-        Spacer(modifier = Modifier.height(12.dp))
+            Spacer(modifier = Modifier.height(16.dp))
 
-        // Category breakdown
-        Surface(
-            shape = RoundedCornerShape(14.dp),
-            color = MaterialTheme.colorScheme.surface,
-            border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)),
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Column(modifier = Modifier.padding(12.dp)) {
-                Text(
-                    text = "Categories",
-                    style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold)
-                )
-                Spacer(modifier = Modifier.height(8.dp))
-                CategoryBreakdownBar(categories = summary.categoryShares)
+            // "BY CATEGORY" Donut Card matching Screen 4 mockup
+            Surface(
+                shape = RoundedCornerShape(18.dp),
+                color = MaterialTheme.colorScheme.surface,
+                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)),
+                tonalElevation = 1.dp,
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Column(modifier = Modifier.padding(16.dp)) {
+                    Text(
+                        text = "BY CATEGORY",
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Bold,
+                        letterSpacing = 0.8.sp,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+
+                    Spacer(modifier = Modifier.height(10.dp))
+
+                    CategoryDonutChartCard(
+                        categories = summary.categoryShares,
+                        totalTasks = totalTasks
+                    )
+                }
             }
         }
     }
 }
 
 @Composable
-private fun MinimalStatTile(
-    icon: ImageVector,
-    tint: Color,
+private fun MetricCardWithAccent(
     title: String,
     value: String,
+    accentColor: Color,
     modifier: Modifier = Modifier
 ) {
     Surface(
-        shape = RoundedCornerShape(12.dp),
+        shape = RoundedCornerShape(14.dp),
         color = MaterialTheme.colorScheme.surface,
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)),
+        tonalElevation = 1.dp,
         modifier = modifier
     ) {
         Column(
-            modifier = Modifier.padding(8.dp),
+            modifier = Modifier.fillMaxWidth(),
             horizontalAlignment = Alignment.CenterHorizontally
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = tint,
-                modifier = Modifier.size(16.dp)
-            )
-            Spacer(modifier = Modifier.height(4.dp))
-            Text(
-                text = value,
-                style = MaterialTheme.typography.titleMedium.copy(fontWeight = FontWeight.Bold, fontSize = 15.sp),
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Text(
-                text = title,
-                fontSize = 10.sp,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 12.dp, horizontal = 8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally
+            ) {
+                Text(
+                    text = title,
+                    fontSize = 11.sp,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                Spacer(modifier = Modifier.height(4.dp))
+                Text(
+                    text = value,
+                    style = MaterialTheme.typography.titleLarge.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 18.sp
+                    ),
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+            }
+
+            // Bottom accent underline bar matching Screen 4 mockup
+            Box(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(3.dp)
+                    .background(accentColor)
             )
         }
     }

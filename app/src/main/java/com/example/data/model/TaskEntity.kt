@@ -36,7 +36,8 @@ enum class RecurringRule(val label: String) {
     indices = [
         Index("deadlineTimestamp"),
         Index("categoryId"),
-        Index("isCompleted")
+        Index("isCompleted"),
+        Index("isArchived")
     ]
 )
 data class TaskEntity(
@@ -49,6 +50,7 @@ data class TaskEntity(
     val hasSpecificTime: Boolean = false,
     val isCompleted: Boolean = false,
     val completedAt: Long? = null,
+    val isArchived: Boolean = false,
     val createdAt: Long = System.currentTimeMillis(),
     val updatedAt: Long = System.currentTimeMillis(),
     val reminderMinutesBefore: Int = -1, // -1 means none

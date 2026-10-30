@@ -22,17 +22,13 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.EmojiEvents
 import androidx.compose.material.icons.filled.Insights
 import androidx.compose.material.icons.filled.TaskAlt
-import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.CalendarToday
+import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.EmojiEvents
-import androidx.compose.material.icons.outlined.Insights
-import androidx.compose.material.icons.outlined.TaskAlt
-import androidx.compose.material3.Icon
+import androidx.compose.material.icons.outlined.ShowChart
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.NavigationBarItemDefaults
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
+import com.example.ui.components.TaskFlowBottomBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -69,10 +65,10 @@ sealed class AppNavDestination(
     val selectedIcon: ImageVector,
     val unselectedIcon: ImageVector
 ) {
-    data object Tasks : AppNavDestination("tasks", "Tasks", Icons.Filled.TaskAlt, Icons.Outlined.TaskAlt)
-    data object Timeline : AppNavDestination("timeline", "Timeline", Icons.Filled.CalendarMonth, Icons.Outlined.CalendarMonth)
-    data object Analytics : AppNavDestination("analytics", "Analytics", Icons.Filled.Insights, Icons.Outlined.Insights)
-    data object Achievements : AppNavDestination("achievements", "Badges", Icons.Filled.EmojiEvents, Icons.Outlined.EmojiEvents)
+    data object Tasks : AppNavDestination("tasks", "Tasks", Icons.Outlined.CheckCircle, Icons.Outlined.CheckCircle)
+    data object Timeline : AppNavDestination("timeline", "Timeline", Icons.Outlined.CalendarToday, Icons.Outlined.CalendarToday)
+    data object Analytics : AppNavDestination("analytics", "Analytics", Icons.Outlined.ShowChart, Icons.Outlined.ShowChart)
+    data object Achievements : AppNavDestination("achievements", "Badges", Icons.Outlined.EmojiEvents, Icons.Outlined.EmojiEvents)
 }
 
 class MainActivity : ComponentActivity() {
@@ -156,40 +152,11 @@ fun MainAppContent(
 
     Scaffold(
         bottomBar = {
-            NavigationBar(
-                containerColor = MaterialTheme.colorScheme.surface,
-                tonalElevation = 0.dp,
-                modifier = Modifier
-                    .navigationBarsPadding()
-                    .testTag("main_bottom_nav")
-            ) {
-                tabs.forEachIndexed { index, dest ->
-                    val isSelected = currentTab == index
-                    NavigationBarItem(
-                        selected = isSelected,
-                        onClick = { currentTab = index },
-                        icon = {
-                            Icon(
-                                imageVector = if (isSelected) dest.selectedIcon else dest.unselectedIcon,
-                                contentDescription = dest.title
-                            )
-                        },
-                        label = {
-                            Text(
-                                text = dest.title,
-                                fontSize = 11.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
-                            )
-                        },
-                        colors = NavigationBarItemDefaults.colors(
-                            selectedIconColor = IndigoPrimary,
-                            selectedTextColor = IndigoPrimary,
-                            indicatorColor = IndigoPrimary.copy(alpha = 0.15f)
-                        ),
-                        modifier = Modifier.testTag("nav_item_${dest.route}")
-                    )
-                }
-            }
+            TaskFlowBottomBar(
+                tabs = tabs,
+                selectedTabIndex = currentTab,
+                onTabSelected = { currentTab = it }
+            )
         },
         containerColor = MaterialTheme.colorScheme.background,
         modifier = Modifier.fillMaxSize()
@@ -216,6 +183,8 @@ fun MainAppContent(
                     },
                     onRescheduleTask = { taskToRescheduleId = it },
                     onDeleteTask = { viewModel.deleteTask(it) },
+                    onRestoreTask = { viewModel.unarchiveTask(it) },
+                    onEmptyArchive = { viewModel.emptyArchive() },
                     onCreateTaskClick = {
                         taskToEdit = null
                         showCreateSheet = true
@@ -232,13 +201,21 @@ fun MainAppContent(
                         showCreateSheet = true
                     },
                     onRescheduleTask = { taskToRescheduleId = it },
-                    onDeleteTask = { viewModel.deleteTask(it) }
+                    onDeleteTask = { viewModel.deleteTask(it) },
+                    onCreateTaskClick = {
+                        taskToEdit = null
+                        showCreateSheet = true
+                    }
                 )
 
                 2 -> AnalyticsScreen(
                     summary = uiState.analyticsSummary,
                     currentTimeframe = uiState.analyticsTimeframe,
-                    onSelectTimeframe = { viewModel.setAnalyticsTimeframe(it) }
+                    onSelectTimeframe = { viewModel.setAnalyticsTimeframe(it) },
+                    onCreateTaskClick = {
+                        taskToEdit = null
+                        showCreateSheet = true
+                    }
                 )
 
                 3 -> AchievementsScreen(

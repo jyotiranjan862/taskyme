@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -18,17 +19,18 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Alarm
+import androidx.compose.material.icons.filled.Archive
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Delete
+import androidx.compose.material.icons.filled.DeleteForever
 import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.ExpandLess
 import androidx.compose.material.icons.filled.ExpandMore
-import androidx.compose.material.icons.filled.Flag
 import androidx.compose.material.icons.filled.MoreVert
-import androidx.compose.material.icons.filled.NotificationsActive
-import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Schedule
+import androidx.compose.material.icons.filled.Unarchive
+import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material.icons.outlined.CheckCircle
 import androidx.compose.material.icons.outlined.Circle
 import androidx.compose.material3.DropdownMenu
@@ -80,10 +82,13 @@ fun TaskCard(
     onEdit: () -> Unit,
     onReschedule: () -> Unit,
     onDelete: () -> Unit,
+    onRestore: (() -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
     val task = taskItem.task
     val isCompleted = task.isCompleted
+    val isArchived = task.isArchived
+    val isOverdue = taskItem.isOverdue
     var showMenu by remember { mutableStateOf(false) }
     var expandedSubtasks by remember { mutableStateOf(false) }
 
@@ -97,7 +102,7 @@ fun TaskCard(
 
     val categoryColor = remember(taskItem.category?.colorHex) {
         try {
-            Color(android.graphics.Color.parseColor(taskItem.category?.colorHex ?: "#4F75FF"))
+            Color(android.graphics.Color.parseColor(taskItem.category?.colorHex ?: "#4F46E5"))
         } catch (_: Exception) {
             IndigoPrimary
         }
@@ -111,13 +116,15 @@ fun TaskCard(
         confirmValueChange = { dismissValue ->
             when (dismissValue) {
                 SwipeToDismissBoxValue.EndToStart -> {
-                    // Swiped left: delete immediately
                     onDelete()
                     true
                 }
                 SwipeToDismissBoxValue.StartToEnd -> {
-                    // Swiped right: quick toggle complete and bounce back
-                    onToggleCompletion(!isCompleted)
+                    if (isArchived) {
+                        onRestore?.invoke()
+                    } else {
+                        onToggleCompletion(!isCompleted)
+                    }
                     false
                 }
                 SwipeToDismissBoxValue.Settled -> false
@@ -131,13 +138,17 @@ fun TaskCard(
         enableDismissFromEndToStart = true,
         modifier = modifier
             .fillMaxWidth()
-            .clip(RoundedCornerShape(12.dp))
+            .clip(RoundedCornerShape(16.dp))
             .testTag("task_swipe_box_${task.id}"),
         backgroundContent = {
             val direction = dismissState.dismissDirection
             val bgColor = when (direction) {
-                SwipeToDismissBoxValue.EndToStart -> PriorityUrgent
-                SwipeToDismissBoxValue.StartToEnd -> if (isCompleted) IndigoPrimary else MintSecondary
+                SwipeToDismissBoxValue.EndToStart -> if (isArchived || isCompleted) PriorityUrgent else Color(0xFF64748B)
+                SwipeToDismissBoxValue.StartToEnd -> when {
+                    isArchived -> MintSecondary
+                    isCompleted -> IndigoPrimary
+                    else -> MintSecondary
+                }
                 else -> Color.Transparent
             }
             val alignment = when (direction) {
@@ -146,22 +157,30 @@ fun TaskCard(
                 else -> Alignment.Center
             }
             val icon = when (direction) {
-                SwipeToDismissBoxValue.EndToStart -> Icons.Default.Delete
-                SwipeToDismissBoxValue.StartToEnd -> if (isCompleted) Icons.Default.Close else Icons.Default.Check
+                SwipeToDismissBoxValue.EndToStart -> if (isArchived || isCompleted) Icons.Default.DeleteForever else Icons.Default.Archive
+                SwipeToDismissBoxValue.StartToEnd -> when {
+                    isArchived -> Icons.Default.Unarchive
+                    isCompleted -> Icons.Default.Close
+                    else -> Icons.Default.Check
+                }
                 else -> null
             }
             val label = when (direction) {
-                SwipeToDismissBoxValue.EndToStart -> "Delete"
-                SwipeToDismissBoxValue.StartToEnd -> if (isCompleted) "Reopen" else "Done"
+                SwipeToDismissBoxValue.EndToStart -> if (isArchived || isCompleted) "Delete Forever" else "Archive"
+                SwipeToDismissBoxValue.StartToEnd -> when {
+                    isArchived -> "Restore"
+                    isCompleted -> "Reopen"
+                    else -> "Done"
+                }
                 else -> ""
             }
 
             Box(
                 modifier = Modifier
                     .fillMaxSize()
-                    .clip(RoundedCornerShape(12.dp))
+                    .clip(RoundedCornerShape(16.dp))
                     .background(bgColor)
-                    .padding(horizontal = 18.dp),
+                    .padding(horizontal = 20.dp),
                 contentAlignment = alignment
             ) {
                 if (icon != null) {
@@ -183,35 +202,33 @@ fun TaskCard(
         Surface(
             modifier = Modifier
                 .fillMaxWidth()
-                .clip(RoundedCornerShape(12.dp))
+                .clip(RoundedCornerShape(16.dp))
                 .testTag("task_card_${task.id}"),
-            shape = RoundedCornerShape(12.dp),
-            color = if (isCompleted) {
-                MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
-            } else {
-                MaterialTheme.colorScheme.surface
-            },
+            shape = RoundedCornerShape(16.dp),
+            color = MaterialTheme.colorScheme.surface,
             border = BorderStroke(
                 1.dp,
                 if (taskItem.isOverdue && !isCompleted) PriorityUrgent.copy(alpha = 0.35f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
-            )
+            ),
+            tonalElevation = 1.dp
         ) {
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
-                    .padding(horizontal = 12.dp, vertical = 9.dp)
+                    .padding(14.dp)
             ) {
                 Row(
-                    verticalAlignment = Alignment.CenterVertically,
+                    verticalAlignment = Alignment.Top,
                     modifier = Modifier.fillMaxWidth()
                 ) {
-                    // Minimalist circular checkbox
+                    // Checkbox matching reference (Green filled circle when done, subtle outline when open)
                     Box(
                         modifier = Modifier
-                            .size(22.dp)
+                            .padding(top = 2.dp)
+                            .size(24.dp)
                             .clip(CircleShape)
                             .background(
-                                if (isCompleted) IndigoPrimary else Color.Transparent
+                                if (isCompleted) MintSecondary else Color.Transparent
                             )
                             .clickable { onToggleCompletion(!isCompleted) }
                             .testTag("task_checkbox_${task.id}"),
@@ -222,214 +239,295 @@ fun TaskCard(
                                 imageVector = Icons.Default.Check,
                                 contentDescription = "Completed",
                                 tint = Color.White,
-                                modifier = Modifier.size(14.dp)
+                                modifier = Modifier.size(16.dp)
                             )
                         } else {
                             Surface(
                                 shape = CircleShape,
                                 color = Color.Transparent,
-                                border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)),
-                                modifier = Modifier.size(18.dp)
+                                border = BorderStroke(1.5.dp, MaterialTheme.colorScheme.outline),
+                                modifier = Modifier.size(22.dp)
                             ) {}
                         }
                     }
 
-                    Spacer(modifier = Modifier.width(10.dp))
+                    Spacer(modifier = Modifier.width(12.dp))
 
-                    // Title and notes
-                    Column(
-                        modifier = Modifier
-                            .weight(1f)
-                            .clickable { onEdit() }
-                    ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        // Top row: Category tag on left, Priority badge on right
                         Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.fillMaxWidth()
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            Text(
-                                text = task.title,
-                                style = MaterialTheme.typography.bodyMedium.copy(
-                                    fontWeight = if (isCompleted) FontWeight.Normal else FontWeight.Medium,
-                                    textDecoration = if (isCompleted) TextDecoration.LineThrough else TextDecoration.None
-                                ),
-                                color = if (isCompleted) {
-                                    MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.5f)
-                                } else {
-                                    MaterialTheme.colorScheme.onSurface
-                                },
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                modifier = Modifier.weight(1f)
-                            )
+                            // Category: colored dot + label
+                            taskItem.category?.let { cat ->
+                                Row(verticalAlignment = Alignment.CenterVertically) {
+                                    Box(
+                                        modifier = Modifier
+                                            .size(7.dp)
+                                            .clip(CircleShape)
+                                            .background(categoryColor)
+                                    )
+                                    Spacer(modifier = Modifier.width(5.dp))
+                                    Text(
+                                        text = cat.name,
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Medium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                                    )
+                                }
+                            } ?: Spacer(modifier = Modifier.width(1.dp))
 
-                            // Priority icon flag only
-                            if (priority != Priority.LOW && !isCompleted) {
-                                Spacer(modifier = Modifier.width(6.dp))
-                                Icon(
-                                    imageVector = Icons.Default.Flag,
-                                    contentDescription = "${priority.title} priority",
-                                    tint = priorityColor,
-                                    modifier = Modifier.size(14.dp)
-                                )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                // Priority pill badge (matching reference: subtle tinted badge)
+                                Surface(
+                                    shape = RoundedCornerShape(6.dp),
+                                    color = priorityColor.copy(alpha = 0.12f)
+                                ) {
+                                    Text(
+                                        text = priority.title,
+                                        color = priorityColor,
+                                        fontSize = 10.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
+                                    )
+                                }
+
+                                // Quick options menu
+                                Box {
+                                    IconButton(
+                                        onClick = { showMenu = true },
+                                        modifier = Modifier
+                                            .size(22.dp)
+                                            .padding(start = 4.dp)
+                                            .testTag("task_menu_btn_${task.id}")
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.MoreVert,
+                                            contentDescription = "Options",
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                                            modifier = Modifier.size(15.dp)
+                                        )
+                                    }
+
+                                    DropdownMenu(
+                                        expanded = showMenu,
+                                        onDismissRequest = { showMenu = false }
+                                    ) {
+                                        if (isArchived) {
+                                            DropdownMenuItem(
+                                                text = { Text("Restore to Tasks") },
+                                                leadingIcon = { Icon(Icons.Default.Unarchive, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                                                onClick = {
+                                                    showMenu = false
+                                                    onRestore?.invoke()
+                                                }
+                                            )
+                                            DropdownMenuItem(
+                                                text = { Text("Delete Permanently", color = PriorityUrgent) },
+                                                leadingIcon = { Icon(Icons.Default.DeleteForever, contentDescription = null, tint = PriorityUrgent, modifier = Modifier.size(16.dp)) },
+                                                onClick = {
+                                                    showMenu = false
+                                                    onDelete()
+                                                }
+                                            )
+                                        } else if (isCompleted) {
+                                            DropdownMenuItem(
+                                                text = { Text("Mark as Incomplete") },
+                                                leadingIcon = { Icon(Icons.Default.Close, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                                                onClick = {
+                                                    showMenu = false
+                                                    onToggleCompletion(false)
+                                                }
+                                            )
+                                            DropdownMenuItem(
+                                                text = { Text("Delete Permanently", color = PriorityUrgent) },
+                                                leadingIcon = { Icon(Icons.Default.DeleteForever, contentDescription = null, tint = PriorityUrgent, modifier = Modifier.size(16.dp)) },
+                                                onClick = {
+                                                    showMenu = false
+                                                    onDelete()
+                                                }
+                                            )
+                                        } else {
+                                            DropdownMenuItem(
+                                                text = { Text("Edit Task") },
+                                                leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                                                onClick = {
+                                                    showMenu = false
+                                                    onEdit()
+                                                }
+                                            )
+                                            DropdownMenuItem(
+                                                text = { Text("Reschedule") },
+                                                leadingIcon = { Icon(Icons.Default.Alarm, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                                                onClick = {
+                                                    showMenu = false
+                                                    onReschedule()
+                                                }
+                                            )
+                                            DropdownMenuItem(
+                                                text = { Text("Move to Archive") },
+                                                leadingIcon = { Icon(Icons.Default.Archive, contentDescription = null, modifier = Modifier.size(16.dp)) },
+                                                onClick = {
+                                                    showMenu = false
+                                                    onDelete()
+                                                }
+                                            )
+                                        }
+                                    }
+                                }
                             }
                         }
 
+                        Spacer(modifier = Modifier.height(4.dp))
+
+                        // Task Title
+                        Text(
+                            text = task.title,
+                            style = MaterialTheme.typography.titleMedium.copy(
+                                fontWeight = FontWeight.Bold,
+                                fontSize = 15.sp,
+                                textDecoration = if (isCompleted) TextDecoration.LineThrough else TextDecoration.None
+                            ),
+                            color = if (isCompleted || isArchived) {
+                                MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
+                            } else {
+                                MaterialTheme.colorScheme.onSurface
+                            },
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis
+                        )
+
+                        // Notes / Description
                         if (task.description.isNotBlank()) {
+                            Spacer(modifier = Modifier.height(2.dp))
                             Text(
                                 text = task.description,
-                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis
                             )
                         }
 
-                        // Compact inline metadata row
+                        Spacer(modifier = Modifier.height(10.dp))
+
+                        // Bottom row: Time badge on left, Subtasks count on right
                         Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(top = 4.dp)
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                            verticalAlignment = Alignment.CenterVertically
                         ) {
-                            // Category dot + name
-                            taskItem.category?.let { cat ->
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Box(
-                                        modifier = Modifier
-                                            .size(6.dp)
-                                            .clip(CircleShape)
-                                            .background(categoryColor)
-                                    )
-                                    Spacer(modifier = Modifier.width(4.dp))
-                                    Text(
-                                        text = cat.name,
-                                        fontSize = 11.sp,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
+                            // Left: Time badge pill
+                            if (isArchived) {
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Archive,
+                                            contentDescription = null,
+                                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = "Archived",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                                        )
+                                    }
                                 }
+                            } else if (isCompleted) {
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = MintSecondary.copy(alpha = 0.12f)
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = Icons.Default.Check,
+                                            contentDescription = null,
+                                            tint = MintSecondary,
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = "Completed on time",
+                                            fontSize = 11.sp,
+                                            fontWeight = FontWeight.Medium,
+                                            color = MintSecondary
+                                        )
+                                    }
+                                }
+                            } else if (deadlineText.isNotBlank()) {
+                                val badgeBg = if (isOverdue) PriorityUrgent.copy(alpha = 0.14f) else Color(0xFFFEF3C7) // warm amber pill from reference
+                                val badgeText = if (isOverdue) PriorityUrgent else Color(0xFFD97706)
+
+                                Surface(
+                                    shape = RoundedCornerShape(8.dp),
+                                    color = if (MaterialTheme.colorScheme.background == Color(0xFF0B0F19)) badgeText.copy(alpha = 0.2f) else badgeBg
+                                ) {
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        modifier = Modifier.padding(horizontal = 8.dp, vertical = 3.dp)
+                                    ) {
+                                        Icon(
+                                            imageVector = if (isOverdue) Icons.Default.Warning else Icons.Default.Schedule,
+                                            contentDescription = null,
+                                            tint = badgeText,
+                                            modifier = Modifier.size(12.dp)
+                                        )
+                                        Spacer(modifier = Modifier.width(4.dp))
+                                        Text(
+                                            text = if (isOverdue) "LATE • $deadlineText" else deadlineText,
+                                            fontSize = 11.sp,
+                                            fontWeight = if (isOverdue) FontWeight.Bold else FontWeight.SemiBold,
+                                            color = badgeText
+                                        )
+                                    }
+                                }
+                            } else {
+                                Spacer(modifier = Modifier.width(1.dp))
                             }
 
-                            // Deadline with clock icon
-                            if (deadlineText.isNotBlank()) {
-                                val deadlineColor = when {
-                                    isCompleted -> MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f)
-                                    taskItem.isOverdue -> PriorityUrgent
-                                    else -> MaterialTheme.colorScheme.onSurfaceVariant
-                                }
-                                Row(verticalAlignment = Alignment.CenterVertically) {
-                                    Icon(
-                                        imageVector = Icons.Default.Schedule,
-                                        contentDescription = null,
-                                        tint = deadlineColor,
-                                        modifier = Modifier.size(11.dp)
-                                    )
-                                    Spacer(modifier = Modifier.width(3.dp))
-                                    Text(
-                                        text = deadlineText,
-                                        fontSize = 11.sp,
-                                        fontWeight = if (taskItem.isOverdue) FontWeight.SemiBold else FontWeight.Normal,
-                                        color = deadlineColor
-                                    )
-                                }
-                            }
-
-                            // Subtasks counter
+                            // Right: Subtasks count
                             if (taskItem.subtasks.isNotEmpty()) {
                                 Row(
                                     verticalAlignment = Alignment.CenterVertically,
                                     modifier = Modifier.clickable { expandedSubtasks = !expandedSubtasks }
                                 ) {
                                     Text(
-                                        text = "${taskItem.completedSubtaskCount}/${taskItem.totalSubtaskCount}",
+                                        text = "${taskItem.completedSubtaskCount}/${taskItem.totalSubtaskCount} subtasks",
                                         fontSize = 11.sp,
-                                        color = if (taskItem.completedSubtaskCount == taskItem.totalSubtaskCount) PriorityLow else MaterialTheme.colorScheme.onSurfaceVariant
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant
                                     )
                                     Icon(
                                         imageVector = if (expandedSubtasks) Icons.Default.ExpandLess else Icons.Default.ExpandMore,
-                                        contentDescription = "Toggle subtasks",
+                                        contentDescription = null,
                                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.size(12.dp)
+                                        modifier = Modifier.size(13.dp)
                                     )
                                 }
                             }
-
-                            // Reminder icon
-                            if (task.reminderMinutesBefore >= 0 && !isCompleted) {
-                                Icon(
-                                    imageVector = Icons.Default.NotificationsActive,
-                                    contentDescription = "Reminder set",
-                                    tint = CyanAccent,
-                                    modifier = Modifier.size(11.dp)
-                                )
-                            }
-
-                            // Recurring icon
-                            if (!task.recurringRule.isNullOrBlank()) {
-                                Icon(
-                                    imageVector = Icons.Default.Repeat,
-                                    contentDescription = "Recurring",
-                                    tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    modifier = Modifier.size(11.dp)
-                                )
-                            }
-                        }
-                    }
-
-                    // Options menu button
-                    Box {
-                        IconButton(
-                            onClick = { showMenu = true },
-                            modifier = Modifier
-                                .size(28.dp)
-                                .testTag("task_menu_btn_${task.id}")
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.MoreVert,
-                                contentDescription = "Options",
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                                modifier = Modifier.size(16.dp)
-                            )
-                        }
-
-                        DropdownMenu(
-                            expanded = showMenu,
-                            onDismissRequest = { showMenu = false }
-                        ) {
-                            DropdownMenuItem(
-                                text = { Text("Edit") },
-                                leadingIcon = { Icon(Icons.Default.Edit, contentDescription = null, modifier = Modifier.size(16.dp)) },
-                                onClick = {
-                                    showMenu = false
-                                    onEdit()
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Reschedule") },
-                                leadingIcon = { Icon(Icons.Default.Alarm, contentDescription = null, modifier = Modifier.size(16.dp)) },
-                                onClick = {
-                                    showMenu = false
-                                    onReschedule()
-                                }
-                            )
-                            DropdownMenuItem(
-                                text = { Text("Delete", color = PriorityUrgent) },
-                                leadingIcon = { Icon(Icons.Default.Delete, contentDescription = null, tint = PriorityUrgent, modifier = Modifier.size(16.dp)) },
-                                onClick = {
-                                    showMenu = false
-                                    onDelete()
-                                }
-                            )
                         }
                     }
                 }
 
-                // Expandable Subtasks Checklist
+                // Expandable subtasks checklist
                 AnimatedVisibility(visible = expandedSubtasks && taskItem.subtasks.isNotEmpty()) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
-                            .padding(start = 32.dp, top = 6.dp)
+                            .padding(start = 36.dp, top = 8.dp)
                     ) {
                         taskItem.subtasks.forEach { subtask ->
                             Row(
@@ -442,7 +540,7 @@ fun TaskCard(
                                 Icon(
                                     imageVector = if (subtask.isCompleted) Icons.Outlined.CheckCircle else Icons.Outlined.Circle,
                                     contentDescription = null,
-                                    tint = if (subtask.isCompleted) PriorityLow else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                                    tint = if (subtask.isCompleted) MintSecondary else MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                                     modifier = Modifier.size(14.dp)
                                 )
                                 Spacer(modifier = Modifier.width(6.dp))
@@ -469,7 +567,7 @@ fun TaskCard(
 
 private fun formatDeadlineLabel(deadline: Long?, hasSpecificTime: Boolean, isCompleted: Boolean): String {
     if (deadline == null) return ""
-    if (isCompleted) return "Done"
+    if (isCompleted) return "Completed"
 
     val now = System.currentTimeMillis()
     val diff = deadline - now
@@ -486,15 +584,18 @@ private fun formatDeadlineLabel(deadline: Long?, hasSpecificTime: Boolean, isCom
 
     if (diff < 0) {
         val overdueMins = (-diff / (60 * 1000)).toInt()
-        return if (overdueMins < 60) "${overdueMins}m late" else "${overdueMins / 60}h late"
+        return if (overdueMins < 60) "Overdue by ${overdueMins}m" else "Overdue by ${overdueMins / 60}h"
     }
 
     val timeFormat = SimpleDateFormat("h:mm a", Locale.getDefault())
-    val timePart = if (hasSpecificTime) " " + timeFormat.format(Date(deadline)) else ""
+    val formattedTime = if (hasSpecificTime) timeFormat.format(Date(deadline)) else ""
+
+    val remainingHours = (diff / (3600 * 1000)).toInt()
+    val inHoursPart = if (remainingHours in 1..48) " (in ${remainingHours}h)" else ""
 
     return when {
-        isSameDay -> "Today$timePart"
-        isTomorrow -> "Tomorrow$timePart"
-        else -> SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(deadline)) + timePart
+        isSameDay -> if (hasSpecificTime) "$formattedTime$inHoursPart" else "Today"
+        isTomorrow -> if (hasSpecificTime) "Tomorrow at $formattedTime" else "Tomorrow"
+        else -> SimpleDateFormat("EEE, h:mm a", Locale.getDefault()).format(Date(deadline)) + inHoursPart
     }
 }

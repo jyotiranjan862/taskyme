@@ -28,11 +28,9 @@ import kotlinx.coroutines.launch
 import java.util.Calendar
 
 enum class TaskFilter(val title: String) {
-    ALL("All"),
-    TODAY("Today"),
-    UPCOMING("Upcoming"),
-    OVERDUE("Overdue"),
-    COMPLETED("Completed")
+    TASKS("Tasks"),
+    COMPLETED("Completed"),
+    ARCHIVE("Archive")
 }
 
 enum class TaskSort(val title: String) {
@@ -47,7 +45,7 @@ data class TaskFlowUiState(
     val filteredTasks: List<TaskItem> = emptyList(),
     val categories: List<CategoryEntity> = emptyList(),
     val achievements: List<AchievementEntity> = emptyList(),
-    val selectedFilter: TaskFilter = TaskFilter.ALL,
+    val selectedFilter: TaskFilter = TaskFilter.TASKS,
     val selectedCategoryId: Long? = null,
     val selectedPriority: Priority? = null,
     val searchQuery: String = "",
@@ -55,6 +53,10 @@ data class TaskFlowUiState(
     val nextDeadlineTask: TaskItem? = null,
     val todayCompletedCount: Int = 0,
     val todayTotalCount: Int = 0,
+    val lateTaskCount: Int = 0,
+    val archivedTaskCount: Int = 0,
+    val completedTaskCount: Int = 0,
+    val activeTaskCount: Int = 0,
     val analyticsTimeframe: AnalyticsTimeframe = AnalyticsTimeframe.LAST_7_DAYS,
     val analyticsSummary: AnalyticsPeriodSummary? = null,
     val newlyUnlockedAchievement: AchievementEntity? = null
@@ -68,7 +70,7 @@ class TaskFlowViewModel(
 
     val themeMode: StateFlow<AppThemeMode> = preferencesRepository.themeMode
 
-    private val _selectedFilter = MutableStateFlow(TaskFilter.ALL)
+    private val _selectedFilter = MutableStateFlow(TaskFilter.TASKS)
     val selectedFilter = _selectedFilter.asStateFlow()
 
     private val _selectedCategoryId = MutableStateFlow<Long?>(null)
@@ -122,20 +124,28 @@ class TaskFlowViewModel(
 
         val endOfToday = startOfToday + (24 * 60 * 60 * 1000)
 
+        val activeTasks = tasks.filter { !it.task.isArchived && !it.task.isCompleted }
+        val completedTasks = tasks.filter { !it.task.isArchived && it.task.isCompleted }
+        val archivedTasks = tasks.filter { it.task.isArchived }
+        val lateCount = activeTasks.count { it.isOverdue }
+
         val todayTasks = tasks.filter {
-            val d = it.task.deadlineTimestamp
-            d != null && d in startOfToday until endOfToday
+            !it.task.isArchived && it.task.deadlineTimestamp != null && it.task.deadlineTimestamp in startOfToday until endOfToday
         }
         val todayCompleted = todayTasks.count { it.task.isCompleted }
         val todayTotal = todayTasks.size
 
-        // Next upcoming deadline task (not completed, has deadline)
-        val nextDeadlineTask = tasks
-            .filter { !it.task.isCompleted && it.task.deadlineTimestamp != null }
+        // Next upcoming deadline task (not archived, not completed, has deadline)
+        val nextDeadlineTask = activeTasks
+            .filter { it.task.deadlineTimestamp != null }
             .minByOrNull { it.task.deadlineTimestamp!! }
 
-        // Filter tasks
-        var filtered = tasks
+        // Primary tab filter
+        var filtered = when (filter) {
+            TaskFilter.TASKS -> activeTasks
+            TaskFilter.COMPLETED -> completedTasks
+            TaskFilter.ARCHIVE -> archivedTasks
+        }
 
         // Category filter
         if (categoryId != null) {
@@ -158,44 +168,22 @@ class TaskFlowViewModel(
             }
         }
 
-        // Primary tab filter
-        filtered = when (filter) {
-            TaskFilter.ALL -> filtered
-            TaskFilter.TODAY -> filtered.filter {
-                val d = it.task.deadlineTimestamp
-                d != null && d in startOfToday until endOfToday
-            }
-            TaskFilter.UPCOMING -> filtered.filter {
-                !it.task.isCompleted && (it.task.deadlineTimestamp == null || it.task.deadlineTimestamp!! >= startOfToday)
-            }
-            TaskFilter.OVERDUE -> filtered.filter { it.isOverdue }
-            TaskFilter.COMPLETED -> filtered.filter { it.task.isCompleted }
-        }
-
         // Sort tasks
         filtered = when (sort) {
             TaskSort.DEADLINE -> filtered.sortedWith(
-                compareBy<TaskItem> { it.task.isCompleted }
-                    .thenBy { it.task.deadlineTimestamp ?: Long.MAX_VALUE }
+                compareBy<TaskItem> { it.task.deadlineTimestamp ?: Long.MAX_VALUE }
                     .thenByDescending { it.task.createdAt }
             )
             TaskSort.PRIORITY -> filtered.sortedWith(
-                compareBy<TaskItem> { it.task.isCompleted }
-                    .thenByDescending { Priority.fromString(it.task.priority).level }
+                compareByDescending<TaskItem> { Priority.fromString(it.task.priority).level }
                     .thenBy { it.task.deadlineTimestamp ?: Long.MAX_VALUE }
             )
-            TaskSort.NEWEST -> filtered.sortedWith(
-                compareBy<TaskItem> { it.task.isCompleted }
-                    .thenByDescending { it.task.createdAt }
-            )
-            TaskSort.TITLE -> filtered.sortedWith(
-                compareBy<TaskItem> { it.task.isCompleted }
-                    .thenBy { it.task.title.lowercase() }
-            )
+            TaskSort.NEWEST -> filtered.sortedByDescending { it.task.createdAt }
+            TaskSort.TITLE -> filtered.sortedBy { it.task.title.lowercase() }
         }
 
-        // Calculate analytics
-        val analyticsSummary = AnalyticsCalculator.computeSummary(tasks, categories, timeframe)
+        // Calculate analytics (excluding archived tasks)
+        val analyticsSummary = AnalyticsCalculator.computeSummary(tasks.filter { !it.task.isArchived }, categories, timeframe)
 
         TaskFlowUiState(
             rawTasks = tasks,
@@ -210,6 +198,10 @@ class TaskFlowViewModel(
             nextDeadlineTask = nextDeadlineTask,
             todayCompletedCount = todayCompleted,
             todayTotalCount = todayTotal,
+            lateTaskCount = lateCount,
+            archivedTaskCount = archivedTasks.size,
+            completedTaskCount = completedTasks.size,
+            activeTaskCount = activeTasks.size,
             analyticsTimeframe = timeframe,
             analyticsSummary = analyticsSummary,
             newlyUnlockedAchievement = _newlyUnlockedAchievement.value
@@ -266,7 +258,34 @@ class TaskFlowViewModel(
 
     fun deleteTask(taskId: Long) {
         viewModelScope.launch {
-            taskRepository.deleteTask(taskId)
+            when (_selectedFilter.value) {
+                TaskFilter.TASKS -> taskRepository.archiveTask(taskId)
+                TaskFilter.COMPLETED, TaskFilter.ARCHIVE -> taskRepository.permanentlyDeleteTask(taskId)
+            }
+        }
+    }
+
+    fun archiveTask(taskId: Long) {
+        viewModelScope.launch {
+            taskRepository.archiveTask(taskId)
+        }
+    }
+
+    fun unarchiveTask(taskId: Long) {
+        viewModelScope.launch {
+            taskRepository.unarchiveTask(taskId)
+        }
+    }
+
+    fun permanentlyDeleteTask(taskId: Long) {
+        viewModelScope.launch {
+            taskRepository.permanentlyDeleteTask(taskId)
+        }
+    }
+
+    fun emptyArchive() {
+        viewModelScope.launch {
+            taskRepository.emptyArchive()
         }
     }
 

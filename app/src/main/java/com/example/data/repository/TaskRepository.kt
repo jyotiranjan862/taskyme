@@ -107,8 +107,32 @@ class TaskRepository(
     }
 
     suspend fun deleteTask(taskId: Long) {
+        archiveTask(taskId)
+    }
+
+    suspend fun archiveTask(taskId: Long) {
+        NotificationHelper.cancelTaskReminder(context, taskId)
+        taskDao.updateTaskArchived(taskId, isArchived = true)
+        refreshWidgetAndNotification()
+    }
+
+    suspend fun unarchiveTask(taskId: Long) {
+        taskDao.updateTaskArchived(taskId, isArchived = false)
+        val task = taskDao.getTaskById(taskId)
+        if (task != null && !task.isCompleted) {
+            NotificationHelper.scheduleTaskReminder(context, task)
+        }
+        refreshWidgetAndNotification()
+    }
+
+    suspend fun permanentlyDeleteTask(taskId: Long) {
         NotificationHelper.cancelTaskReminder(context, taskId)
         taskDao.deleteTaskById(taskId)
+        refreshWidgetAndNotification()
+    }
+
+    suspend fun emptyArchive() {
+        taskDao.emptyArchive()
         refreshWidgetAndNotification()
     }
 

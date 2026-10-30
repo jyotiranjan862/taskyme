@@ -26,29 +26,23 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
-import androidx.compose.material.icons.filled.Alarm
-import androidx.compose.material.icons.filled.Category
+import androidx.compose.material.icons.filled.CalendarToday
 import androidx.compose.material.icons.filled.Close
-import androidx.compose.material.icons.filled.NotificationsActive
-import androidx.compose.material.icons.filled.Repeat
 import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Timer
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.SwitchDefaults
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberModalBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -72,8 +66,8 @@ import com.example.data.model.Priority
 import com.example.data.model.SubtaskEntity
 import com.example.data.model.TaskEntity
 import com.example.data.model.TaskItem
-import com.example.ui.theme.CyanAccent
 import com.example.ui.theme.IndigoPrimary
+import com.example.ui.theme.MintSecondary
 import com.example.ui.theme.PriorityHigh
 import com.example.ui.theme.PriorityLow
 import com.example.ui.theme.PriorityMedium
@@ -118,18 +112,23 @@ fun TaskCreateEditSheet(
         mutableLongStateOf(taskToEdit?.task?.categoryId ?: (categories.firstOrNull()?.id ?: 1L))
     }
     var selectedPriority by remember {
-        mutableStateOf(Priority.fromString(taskToEdit?.task?.priority ?: "MEDIUM"))
+        mutableStateOf(Priority.fromString(taskToEdit?.task?.priority ?: "HIGH"))
     }
 
-    var deadlineTimestamp by remember { mutableStateOf(taskToEdit?.task?.deadlineTimestamp) }
-    var hasSpecificTime by remember { mutableStateOf(taskToEdit?.task?.hasSpecificTime ?: false) }
-    var reminderMinutes by remember { mutableIntStateOf(taskToEdit?.task?.reminderMinutesBefore ?: 15) }
-    var isPersistentNotification by remember {
-        mutableStateOf(taskToEdit?.task?.isPersistentNotificationEnabled ?: false)
+    var deadlineTimestamp by remember {
+        mutableStateOf(
+            taskToEdit?.task?.deadlineTimestamp ?: run {
+                val c = Calendar.getInstance()
+                c.set(Calendar.HOUR_OF_DAY, 16)
+                c.set(Calendar.MINUTE, 20)
+                c.timeInMillis
+            }
+        )
     }
-    var recurringRule by remember { mutableStateOf(taskToEdit?.task?.recurringRule) }
-    var estimatedDuration by remember { mutableIntStateOf(taskToEdit?.task?.estimatedDurationMinutes ?: 30) }
-    var tags by remember { mutableStateOf(taskToEdit?.task?.tags ?: "") }
+    var hasSpecificTime by remember { mutableStateOf(taskToEdit?.task?.hasSpecificTime ?: true) }
+    var reminderEnabled by remember {
+        mutableStateOf(taskToEdit?.task?.reminderMinutesBefore != null && taskToEdit.task.reminderMinutesBefore >= 0)
+    }
 
     val subtaskTitles = remember {
         mutableStateListOf<String>().apply {
@@ -141,6 +140,51 @@ fun TaskCreateEditSheet(
     var newSubtaskText by remember { mutableStateOf("") }
 
     val isEditing = taskToEdit != null
+
+    fun doSave() {
+        if (title.isBlank()) return
+        val reminderMinutes = if (reminderEnabled) 60 else -1
+
+        if (isEditing && taskToEdit != null) {
+            val updatedTask = taskToEdit.task.copy(
+                title = title.trim(),
+                description = description.trim(),
+                categoryId = selectedCategoryId,
+                priority = selectedPriority.name,
+                deadlineTimestamp = deadlineTimestamp,
+                hasSpecificTime = hasSpecificTime,
+                reminderMinutesBefore = reminderMinutes,
+                updatedAt = System.currentTimeMillis()
+            )
+            val updatedSubtasks = subtaskTitles.mapIndexed { idx, subTitle ->
+                val existing = taskToEdit.subtasks.getOrNull(idx)
+                SubtaskEntity(
+                    id = existing?.id ?: 0L,
+                    taskId = taskToEdit.task.id,
+                    title = subTitle,
+                    isCompleted = existing?.isCompleted ?: false,
+                    position = idx
+                )
+            }
+            onUpdateExistingTask(updatedTask, updatedSubtasks)
+        } else {
+            onSaveTask(
+                title,
+                description,
+                selectedCategoryId,
+                selectedPriority,
+                deadlineTimestamp,
+                hasSpecificTime,
+                reminderMinutes,
+                false,
+                null,
+                30,
+                "",
+                subtaskTitles.toList()
+            )
+        }
+        onDismiss()
+    }
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -155,61 +199,102 @@ fun TaskCreateEditSheet(
                 .verticalScroll(rememberScrollState())
                 .padding(bottom = 32.dp)
         ) {
-            // Sheet Header
+            // Header matching Screen 3 mockup (Cancel | New task | Save)
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.SpaceBetween,
                 verticalAlignment = Alignment.CenterVertically
             ) {
+                TextButton(onClick = onDismiss) {
+                    Text("Cancel", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 14.sp)
+                }
+
                 Text(
-                    text = if (isEditing) "Edit Task" else "Create Task",
-                    style = MaterialTheme.typography.titleLarge.copy(fontWeight = FontWeight.Bold),
+                    text = if (isEditing) "Edit task" else "New task",
+                    style = MaterialTheme.typography.titleMedium.copy(
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 17.sp
+                    ),
                     color = MaterialTheme.colorScheme.onSurface
                 )
-                IconButton(onClick = onDismiss) {
-                    Icon(Icons.Default.Close, contentDescription = "Close")
+
+                TextButton(
+                    onClick = { doSave() },
+                    enabled = title.isNotBlank()
+                ) {
+                    Text(
+                        text = "Save",
+                        color = if (title.isNotBlank()) IndigoPrimary else MaterialTheme.colorScheme.outline,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 14.sp
+                    )
                 }
             }
 
             Spacer(modifier = Modifier.height(14.dp))
 
-            // Title input
+            // TITLE Section
+            Text(
+                text = "TITLE",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.5.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+
             OutlinedTextField(
                 value = title,
                 onValueChange = { title = it },
-                label = { Text("Task Title *") },
-                placeholder = { Text("e.g. Complete quarterly financial review") },
+                placeholder = { Text("Task title...", fontSize = 14.sp) },
                 singleLine = true,
+                shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
                     .fillMaxWidth()
                     .testTag("task_title_input"),
                 colors = OutlinedTextFieldDefaults.colors(
-                    focusedBorderColor = IndigoPrimary
+                    focusedBorderColor = IndigoPrimary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
                 )
             )
 
-            Spacer(modifier = Modifier.height(10.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            // Description input
+            // NOTES Section
+            Text(
+                text = "NOTES",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.5.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+            Spacer(modifier = Modifier.height(6.dp))
+
             OutlinedTextField(
                 value = description,
                 onValueChange = { description = it },
-                label = { Text("Details & Notes (optional)") },
-                placeholder = { Text("Add context, links, or notes...") },
-                minLines = 2,
-                maxLines = 4,
+                placeholder = { Text("Add notes or details...", fontSize = 14.sp) },
+                minLines = 3,
+                maxLines = 5,
+                shape = RoundedCornerShape(12.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .testTag("task_description_input")
+                    .testTag("task_description_input"),
+                colors = OutlinedTextFieldDefaults.colors(
+                    focusedBorderColor = IndigoPrimary,
+                    unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                )
             )
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            // Categories row
+            // CATEGORY Section
             Text(
-                text = "Category",
-                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                color = MaterialTheme.colorScheme.onSurface
+                text = "CATEGORY",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.5.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -226,54 +311,65 @@ fun TaskCreateEditSheet(
                     }
 
                     Surface(
-                        shape = RoundedCornerShape(10.dp),
-                        color = if (isSelected) catColor.copy(alpha = 0.22f) else MaterialTheme.colorScheme.surfaceVariant,
-                        border = if (isSelected) BorderStroke(1.5.dp, catColor) else null,
+                        shape = RoundedCornerShape(20.dp),
+                        color = if (isSelected) IndigoPrimary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(
+                            1.dp,
+                            if (isSelected) IndigoPrimary else MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)
+                        ),
                         modifier = Modifier
                             .clickable { selectedCategoryId = category.id }
                             .testTag("category_chip_${category.id}")
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)
+                            modifier = Modifier.padding(horizontal = 14.dp, vertical = 7.dp)
                         ) {
                             Box(
                                 modifier = Modifier
-                                    .size(8.dp)
+                                    .size(7.dp)
                                     .clip(CircleShape)
                                     .background(catColor)
                             )
                             Spacer(modifier = Modifier.width(6.dp))
                             Text(
                                 text = category.name,
-                                fontSize = 13.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isSelected) catColor else MaterialTheme.colorScheme.onSurface
+                                fontSize = 12.sp,
+                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
+                                color = if (isSelected) IndigoPrimary else MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
                 }
 
                 item {
-                    OutlinedButton(
-                        onClick = onAddNewCategoryRequested,
-                        shape = RoundedCornerShape(10.dp),
-                        modifier = Modifier.height(34.dp)
+                    Surface(
+                        shape = RoundedCornerShape(20.dp),
+                        color = MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.5f)),
+                        modifier = Modifier.clickable { onAddNewCategoryRequested() }
                     ) {
-                        Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(14.dp))
-                        Spacer(modifier = Modifier.width(4.dp))
-                        Text("Add", fontSize = 12.sp)
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 7.dp)
+                        ) {
+                            Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(13.dp))
+                            Spacer(modifier = Modifier.width(4.dp))
+                            Text("New", fontSize = 12.sp)
+                        }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            // Priority Selector
+            // PRIORITY Section (matching Screen 3 segmented control)
             Text(
-                text = "Priority",
-                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                color = MaterialTheme.colorScheme.onSurface
+                text = "PRIORITY",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.5.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(8.dp))
 
@@ -281,19 +377,16 @@ fun TaskCreateEditSheet(
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier.fillMaxWidth()
             ) {
-                Priority.entries.forEach { p ->
+                listOf(Priority.LOW, Priority.MEDIUM, Priority.HIGH, Priority.URGENT).forEach { p ->
                     val isSelected = selectedPriority == p
-                    val pColor = when (p) {
-                        Priority.URGENT -> PriorityUrgent
-                        Priority.HIGH -> PriorityHigh
-                        Priority.MEDIUM -> PriorityMedium
-                        Priority.LOW -> PriorityLow
-                    }
 
                     Surface(
                         shape = RoundedCornerShape(10.dp),
-                        color = if (isSelected) pColor.copy(alpha = 0.2f) else MaterialTheme.colorScheme.surfaceVariant,
-                        border = if (isSelected) BorderStroke(1.5.dp, pColor) else null,
+                        color = if (isSelected) IndigoPrimary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surface,
+                        border = BorderStroke(
+                            1.dp,
+                            if (isSelected) IndigoPrimary else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                        ),
                         modifier = Modifier
                             .weight(1f)
                             .clickable { selectedPriority = p }
@@ -301,274 +394,166 @@ fun TaskCreateEditSheet(
                     ) {
                         Box(
                             contentAlignment = Alignment.Center,
-                            modifier = Modifier.padding(vertical = 8.dp)
+                            modifier = Modifier.padding(vertical = 9.dp)
                         ) {
                             Text(
                                 text = p.title,
                                 fontSize = 12.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                color = if (isSelected) pColor else MaterialTheme.colorScheme.onSurface
+                                color = if (isSelected) IndigoPrimary else MaterialTheme.colorScheme.onSurface
                             )
                         }
                     }
                 }
             }
 
-            Spacer(modifier = Modifier.height(18.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            // Deadline Section
+            // DUE Section (Date box on left, Time box on right)
             Text(
-                text = "Deadline & Schedule",
-                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                color = MaterialTheme.colorScheme.onSurface
+                text = "DUE",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.5.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(8.dp))
 
-            // Quick date presets
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                val cal = Calendar.getInstance()
-
-                // Preset: Today 5 PM
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    modifier = Modifier.clickable {
-                        cal.timeInMillis = System.currentTimeMillis()
-                        cal.set(Calendar.HOUR_OF_DAY, 17)
-                        cal.set(Calendar.MINUTE, 0)
-                        deadlineTimestamp = cal.timeInMillis
-                        hasSpecificTime = true
-                    }
-                ) {
-                    Text(
-                        text = "Today 5:00 PM",
-                        fontSize = 12.sp,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                    )
-                }
-
-                // Preset: Tonight 9 PM
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    modifier = Modifier.clickable {
-                        cal.timeInMillis = System.currentTimeMillis()
-                        cal.set(Calendar.HOUR_OF_DAY, 21)
-                        cal.set(Calendar.MINUTE, 0)
-                        deadlineTimestamp = cal.timeInMillis
-                        hasSpecificTime = true
-                    }
-                ) {
-                    Text(
-                        text = "Tonight 9:00 PM",
-                        fontSize = 12.sp,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                    )
-                }
-
-                // Preset: Tomorrow 10 AM
-                Surface(
-                    shape = RoundedCornerShape(8.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    modifier = Modifier.clickable {
-                        cal.timeInMillis = System.currentTimeMillis()
-                        cal.add(Calendar.DAY_OF_YEAR, 1)
-                        cal.set(Calendar.HOUR_OF_DAY, 10)
-                        cal.set(Calendar.MINUTE, 0)
-                        deadlineTimestamp = cal.timeInMillis
-                        hasSpecificTime = true
-                    }
-                ) {
-                    Text(
-                        text = "Tomorrow 10:00 AM",
-                        fontSize = 12.sp,
-                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                    )
-                }
-
-                // Preset: No Deadline
-                if (deadlineTimestamp != null) {
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = PriorityUrgent.copy(alpha = 0.12f),
-                        modifier = Modifier.clickable {
-                            deadlineTimestamp = null
-                            hasSpecificTime = false
-                        }
-                    ) {
-                        Text(
-                            text = "Clear Deadline",
-                            fontSize = 12.sp,
-                            color = PriorityUrgent,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 6.dp)
-                        )
-                    }
-                }
-            }
-
-            Spacer(modifier = Modifier.height(10.dp))
-
-            // Date & Time pickers
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
-                // Pick Date
-                OutlinedButton(
-                    onClick = {
-                        val c = Calendar.getInstance()
-                        deadlineTimestamp?.let { c.timeInMillis = it }
-                        DatePickerDialog(
-                            context,
-                            { _, y, m, d ->
-                                val updated = Calendar.getInstance()
-                                deadlineTimestamp?.let { updated.timeInMillis = it }
-                                updated.set(Calendar.YEAR, y)
-                                updated.set(Calendar.MONTH, m)
-                                updated.set(Calendar.DAY_OF_MONTH, d)
-                                deadlineTimestamp = updated.timeInMillis
-                            },
-                            c.get(Calendar.YEAR),
-                            c.get(Calendar.MONTH),
-                            c.get(Calendar.DAY_OF_MONTH)
-                        ).show()
-                    },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(Icons.Default.Schedule, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    val dateStr = deadlineTimestamp?.let {
-                        SimpleDateFormat("EEE, MMM d", Locale.getDefault()).format(Date(it))
-                    } ?: "Pick Date"
-                    Text(dateStr, fontSize = 12.sp)
-                }
-
-                // Pick Time
-                OutlinedButton(
-                    onClick = {
-                        val c = Calendar.getInstance()
-                        deadlineTimestamp?.let { c.timeInMillis = it }
-                        TimePickerDialog(
-                            context,
-                            { _, h, min ->
-                                val updated = Calendar.getInstance()
-                                if (deadlineTimestamp != null) {
-                                    updated.timeInMillis = deadlineTimestamp!!
-                                }
-                                updated.set(Calendar.HOUR_OF_DAY, h)
-                                updated.set(Calendar.MINUTE, min)
-                                deadlineTimestamp = updated.timeInMillis
-                                hasSpecificTime = true
-                            },
-                            c.get(Calendar.HOUR_OF_DAY),
-                            c.get(Calendar.MINUTE),
-                            false
-                        ).show()
-                    },
-                    modifier = Modifier.weight(1f)
-                ) {
-                    Icon(Icons.Default.Timer, contentDescription = null, modifier = Modifier.size(16.dp))
-                    Spacer(modifier = Modifier.width(6.dp))
-                    val timeStr = if (deadlineTimestamp != null && hasSpecificTime) {
-                        SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(deadlineTimestamp!!))
-                    } else {
-                        "Set Time"
-                    }
-                    Text(timeStr, fontSize = 12.sp)
-                }
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // Reminder Options
-            Text(
-                text = "Reminder Alarm",
-                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-
-            val reminderOptions = listOf(
-                -1 to "None",
-                0 to "At deadline",
-                15 to "15m before",
-                30 to "30m before",
-                60 to "1h before",
-                1440 to "1 day before"
-            )
-
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                items(reminderOptions) { (mins, label) ->
-                    val isSelected = reminderMinutes == mins
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = { reminderMinutes = mins },
-                        label = { Text(label, fontSize = 11.sp) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = CyanAccent.copy(alpha = 0.2f),
-                            selectedLabelColor = CyanAccent
-                        )
-                    )
-                }
-            }
-
-            Spacer(modifier = Modifier.height(14.dp))
-
-            // Persistent Notification Switch
-            Surface(
-                shape = RoundedCornerShape(12.dp),
-                color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                modifier = Modifier.fillMaxWidth()
-            ) {
-                Row(
+                // Date picker box
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)),
                     modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                imageVector = Icons.Default.NotificationsActive,
-                                contentDescription = null,
-                                tint = IndigoPrimary,
-                                modifier = Modifier.size(16.dp)
-                            )
-                            Spacer(modifier = Modifier.width(6.dp))
-                            Text(
-                                text = "Persistent Notification",
-                                style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.SemiBold)
-                            )
+                        .weight(1f)
+                        .clickable {
+                            val c = Calendar.getInstance()
+                            deadlineTimestamp?.let { c.timeInMillis = it }
+                            DatePickerDialog(
+                                context,
+                                { _, y, m, d ->
+                                    val updated = Calendar.getInstance()
+                                    deadlineTimestamp?.let { updated.timeInMillis = it }
+                                    updated.set(Calendar.YEAR, y)
+                                    updated.set(Calendar.MONTH, m)
+                                    updated.set(Calendar.DAY_OF_MONTH, d)
+                                    deadlineTimestamp = updated.timeInMillis
+                                },
+                                c.get(Calendar.YEAR),
+                                c.get(Calendar.MONTH),
+                                c.get(Calendar.DAY_OF_MONTH)
+                            ).show()
                         }
-                        Text(
-                            text = "Pins live countdown in Android notification shade",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.CalendarToday,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp)
                         )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        val dateText = deadlineTimestamp?.let {
+                            val nowCal = Calendar.getInstance()
+                            val deadCal = Calendar.getInstance().apply { timeInMillis = it }
+                            if (nowCal.get(Calendar.DAY_OF_YEAR) == deadCal.get(Calendar.DAY_OF_YEAR)) {
+                                "Today"
+                            } else {
+                                SimpleDateFormat("MMM d", Locale.getDefault()).format(Date(it))
+                            }
+                        } ?: "Pick Date"
+                        Text(dateText, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
                     }
+                }
 
-                    Switch(
-                        checked = isPersistentNotification,
-                        onCheckedChange = { isPersistentNotification = it },
-                        colors = SwitchDefaults.colors(
-                            checkedThumbColor = IndigoPrimary
+                // Time picker box
+                Surface(
+                    shape = RoundedCornerShape(12.dp),
+                    color = MaterialTheme.colorScheme.surface,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)),
+                    modifier = Modifier
+                        .weight(1f)
+                        .clickable {
+                            val c = Calendar.getInstance()
+                            deadlineTimestamp?.let { c.timeInMillis = it }
+                            TimePickerDialog(
+                                context,
+                                { _, h, min ->
+                                    val updated = Calendar.getInstance()
+                                    deadlineTimestamp?.let { updated.timeInMillis = it }
+                                    updated.set(Calendar.HOUR_OF_DAY, h)
+                                    updated.set(Calendar.MINUTE, min)
+                                    deadlineTimestamp = updated.timeInMillis
+                                    hasSpecificTime = true
+                                },
+                                c.get(Calendar.HOUR_OF_DAY),
+                                c.get(Calendar.MINUTE),
+                                false
+                            ).show()
+                        }
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(horizontal = 14.dp, vertical = 12.dp)
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Schedule,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(16.dp)
                         )
-                    )
+                        Spacer(modifier = Modifier.width(8.dp))
+                        val timeText = if (deadlineTimestamp != null && hasSpecificTime) {
+                            SimpleDateFormat("h:mm a", Locale.getDefault()).format(Date(deadlineTimestamp!!))
+                        } else {
+                            "Set Time"
+                        }
+                        Text(timeText, fontSize = 13.sp, color = MaterialTheme.colorScheme.onSurface)
+                    }
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
+            Spacer(modifier = Modifier.height(14.dp))
 
-            // Subtasks Builder
+            // REMINDER ROW (matching Screen 3 mockup)
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(vertical = 4.dp),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                Text(
+                    text = "Remind me 1 hour before",
+                    fontSize = 13.sp,
+                    color = MaterialTheme.colorScheme.onSurface
+                )
+                Switch(
+                    checked = reminderEnabled,
+                    onCheckedChange = { reminderEnabled = it },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = IndigoPrimary
+                    )
+                )
+            }
+
+            Spacer(modifier = Modifier.height(14.dp))
+
+            // Subtasks inline checklist
             Text(
-                text = "Subtasks Checklist (${subtaskTitles.size})",
-                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                color = MaterialTheme.colorScheme.onSurface
+                text = "SUBTASKS (${subtaskTitles.size})",
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Bold,
+                letterSpacing = 0.5.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
             )
             Spacer(modifier = Modifier.height(6.dp))
 
@@ -579,22 +564,13 @@ fun TaskCreateEditSheet(
                         .fillMaxWidth()
                         .padding(vertical = 2.dp)
                 ) {
-                    Text(
-                        text = "•",
-                        fontSize = 18.sp,
-                        color = IndigoPrimary,
-                        modifier = Modifier.padding(horizontal = 4.dp)
-                    )
-                    Text(
-                        text = sub,
-                        style = MaterialTheme.typography.bodyMedium,
-                        modifier = Modifier.weight(1f)
-                    )
+                    Text("•", color = IndigoPrimary, modifier = Modifier.padding(horizontal = 6.dp))
+                    Text(sub, fontSize = 13.sp, modifier = Modifier.weight(1f))
                     IconButton(
                         onClick = { subtaskTitles.removeAt(index) },
                         modifier = Modifier.size(24.dp)
                     ) {
-                        Icon(Icons.Default.Close, contentDescription = "Remove subtask", modifier = Modifier.size(14.dp))
+                        Icon(Icons.Default.Close, contentDescription = "Remove", modifier = Modifier.size(14.dp))
                     }
                 }
             }
@@ -606,8 +582,9 @@ fun TaskCreateEditSheet(
                 OutlinedTextField(
                     value = newSubtaskText,
                     onValueChange = { newSubtaskText = it },
-                    placeholder = { Text("Add subtask step...") },
+                    placeholder = { Text("Add a step...", fontSize = 13.sp) },
                     singleLine = true,
+                    shape = RoundedCornerShape(10.dp),
                     modifier = Modifier.weight(1f)
                 )
                 Spacer(modifier = Modifier.width(8.dp))
@@ -618,109 +595,32 @@ fun TaskCreateEditSheet(
                             newSubtaskText = ""
                         }
                     },
-                    modifier = Modifier.height(52.dp)
+                    colors = ButtonDefaults.buttonColors(containerColor = IndigoPrimary),
+                    shape = RoundedCornerShape(10.dp),
+                    modifier = Modifier.height(50.dp)
                 ) {
                     Text("Add")
                 }
             }
 
-            Spacer(modifier = Modifier.height(16.dp))
-
-            // Recurring Rule
-            Text(
-                text = "Recurring Schedule",
-                style = MaterialTheme.typography.labelLarge.copy(fontWeight = FontWeight.SemiBold),
-                color = MaterialTheme.colorScheme.onSurface
-            )
-            Spacer(modifier = Modifier.height(6.dp))
-
-            val recurringOptions = listOf(
-                null to "Does not repeat",
-                "DAILY" to "Daily",
-                "WEEKDAYS" to "Mon-Fri",
-                "WEEKLY" to "Weekly",
-                "MONTHLY" to "Monthly"
-            )
-
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                items(recurringOptions) { (rule, label) ->
-                    val isSelected = recurringRule == rule
-                    FilterChip(
-                        selected = isSelected,
-                        onClick = { recurringRule = rule },
-                        label = { Text(label, fontSize = 11.sp) },
-                        colors = FilterChipDefaults.filterChipColors(
-                            selectedContainerColor = IndigoPrimary.copy(alpha = 0.2f),
-                            selectedLabelColor = IndigoPrimary
-                        )
-                    )
-                }
-            }
-
             Spacer(modifier = Modifier.height(24.dp))
 
-            // Save / Submit Button
+            // Bottom Full-Width Button matching Screen 3 mockup
             Button(
-                onClick = {
-                    if (title.isBlank()) return@Button
-
-                    if (isEditing && taskToEdit != null) {
-                        val updatedTask = taskToEdit.task.copy(
-                            title = title.trim(),
-                            description = description.trim(),
-                            categoryId = selectedCategoryId,
-                            priority = selectedPriority.name,
-                            deadlineTimestamp = deadlineTimestamp,
-                            hasSpecificTime = hasSpecificTime,
-                            reminderMinutesBefore = reminderMinutes,
-                            isPersistentNotificationEnabled = isPersistentNotification,
-                            recurringRule = recurringRule,
-                            estimatedDurationMinutes = estimatedDuration,
-                            tags = tags.trim(),
-                            updatedAt = System.currentTimeMillis()
-                        )
-                        val updatedSubtasks = subtaskTitles.mapIndexed { idx, subTitle ->
-                            val existing = taskToEdit.subtasks.getOrNull(idx)
-                            SubtaskEntity(
-                                id = existing?.id ?: 0L,
-                                taskId = taskToEdit.task.id,
-                                title = subTitle,
-                                isCompleted = existing?.isCompleted ?: false,
-                                position = idx
-                            )
-                        }
-                        onUpdateExistingTask(updatedTask, updatedSubtasks)
-                    } else {
-                        onSaveTask(
-                            title,
-                            description,
-                            selectedCategoryId,
-                            selectedPriority,
-                            deadlineTimestamp,
-                            hasSpecificTime,
-                            reminderMinutes,
-                            isPersistentNotification,
-                            recurringRule,
-                            estimatedDuration,
-                            tags,
-                            subtaskTitles.toList()
-                        )
-                    }
-                    onDismiss()
-                },
+                onClick = { doSave() },
                 modifier = Modifier
                     .fillMaxWidth()
                     .height(52.dp)
-                    .testTag("save_task_button"),
-                shape = RoundedCornerShape(14.dp),
+                    .testTag("create_task_submit_btn"),
+                shape = RoundedCornerShape(26.dp),
                 colors = ButtonDefaults.buttonColors(
                     containerColor = IndigoPrimary,
                     contentColor = Color.White
                 )
             ) {
                 Text(
-                    text = if (isEditing) "Save Changes" else "Create Task",
-                    fontSize = 16.sp,
+                    text = if (isEditing) "Save changes" else "Create task",
+                    fontSize = 15.sp,
                     fontWeight = FontWeight.Bold
                 )
             }
