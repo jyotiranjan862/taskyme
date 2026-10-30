@@ -373,8 +373,7 @@ fun TasksScreen(
                     contentAlignment = Alignment.Center
                 ) {
                     PlayfulEmptyState(
-                        currentFilter = uiState.selectedFilter,
-                        onCreateTaskClick = onCreateTaskClick
+                        currentFilter = uiState.selectedFilter
                     )
                 }
             } else {

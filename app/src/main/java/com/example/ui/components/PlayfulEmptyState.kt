@@ -61,7 +61,7 @@ import kotlin.math.sin
 @Composable
 fun PlayfulEmptyState(
     currentFilter: TaskFilter,
-    onCreateTaskClick: () -> Unit,
+    onCreateTaskClick: (() -> Unit)? = null,
     onQuickAddQuest: ((title: String, categoryName: String, priority: Priority) -> Unit)? = null,
     modifier: Modifier = Modifier
 ) {
@@ -101,54 +101,15 @@ fun PlayfulEmptyState(
                 Spacer(modifier = Modifier.height(6.dp))
 
                 Text(
-                    text = "You're all caught up! Tap below to add your next task and keep your momentum going.",
+                    text = "You're all caught up! Tap the '+' icon anytime to add your next task and keep your momentum going.",
                     style = MaterialTheme.typography.bodyMedium.copy(
                         fontSize = 13.sp,
                         lineHeight = 18.sp
                     ),
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     textAlign = TextAlign.Center,
-                    modifier = Modifier.padding(horizontal = 12.dp)
+                    modifier = Modifier.padding(horizontal = 16.dp)
                 )
-
-                Spacer(modifier = Modifier.height(22.dp))
-
-                // Primary Create Task Button
-                Button(
-                    onClick = onCreateTaskClick,
-                    shape = RoundedCornerShape(16.dp),
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = IndigoPrimary,
-                        contentColor = Color.White
-                    ),
-                    elevation = ButtonDefaults.buttonElevation(
-                        defaultElevation = 3.dp,
-                        pressedElevation = 1.dp
-                    ),
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .height(50.dp)
-                        .testTag("empty_state_create_task_btn")
-                ) {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.Center
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Add,
-                            contentDescription = null,
-                            tint = Color.White,
-                            modifier = Modifier.size(18.dp)
-                        )
-                        Spacer(modifier = Modifier.width(6.dp))
-                        Text(
-                            text = "Create Task",
-                            fontSize = 14.5.sp,
-                            fontWeight = FontWeight.Bold,
-                            color = Color.White
-                        )
-                    }
-                }
             }
 
             TaskFilter.COMPLETED -> {
