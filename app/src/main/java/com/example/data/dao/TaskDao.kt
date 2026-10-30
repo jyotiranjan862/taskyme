@@ -61,6 +61,11 @@ interface TaskDao {
     @Query("UPDATE tasks SET deadlineTimestamp = :deadline, hasSpecificTime = :hasSpecificTime, updatedAt = :updatedAt WHERE id = :id")
     suspend fun rescheduleTask(id: Long, deadline: Long?, hasSpecificTime: Boolean, updatedAt: Long = System.currentTimeMillis())
 
+    @Query("DELETE FROM tasks WHERE title LIKE '%Q4 Strategy%' OR title LIKE '%Q4%' OR title LIKE '%Morning High-Intensity%' OR title LIKE '%Workout%' OR title LIKE '%Clean Architecture%' OR title LIKE '%Install TaskFlow%'")
+    suspend fun deleteDemoTasks()
+
+    suspend fun deleteQ4StrategyTasks() = deleteDemoTasks()
+
     // Subtasks
     @Query("SELECT * FROM subtasks WHERE taskId = :taskId ORDER BY position ASC")
     fun getSubtasksForTaskFlow(taskId: Long): Flow<List<SubtaskEntity>>

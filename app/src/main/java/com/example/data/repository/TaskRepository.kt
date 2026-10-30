@@ -28,13 +28,26 @@ class TaskRepository(
         categoryDao.getAllCategoriesFlow()
     ) { tasksWithSubtasks, categories ->
         val categoryMap = categories.associateBy { it.id }
-        tasksWithSubtasks.map { tws ->
-            TaskItem(
-                task = tws.task,
-                category = categoryMap[tws.task.categoryId],
-                subtasks = tws.subtasks
-            )
-        }
+        tasksWithSubtasks
+            .filter { tws ->
+                val title = tws.task.title
+                !title.contains("Q4 Strategy", ignoreCase = true) &&
+                !title.contains("Morning High-Intensity", ignoreCase = true) &&
+                !title.contains("Clean Architecture", ignoreCase = true) &&
+                !title.contains("Install TaskFlow", ignoreCase = true)
+            }
+            .map { tws ->
+                TaskItem(
+                    task = tws.task,
+                    category = categoryMap[tws.task.categoryId],
+                    subtasks = tws.subtasks
+                )
+            }
+    }
+
+    suspend fun cleanupLegacyDemoTasks() {
+        taskDao.deleteDemoTasks()
+        refreshWidgetAndNotification()
     }
 
     val categoriesFlow: Flow<List<CategoryEntity>> = categoryDao.getAllCategoriesFlow()

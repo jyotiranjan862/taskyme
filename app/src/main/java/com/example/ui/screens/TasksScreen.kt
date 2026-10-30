@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -56,9 +55,11 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.example.data.model.Priority
 import com.example.data.model.TaskItem
 import com.example.data.repository.AppThemeMode
 import com.example.ui.components.NextDeadlineHero
+import com.example.ui.components.PlayfulEmptyState
 import com.example.ui.components.TaskCard
 import com.example.ui.theme.CyanAccent
 import com.example.ui.theme.IndigoPrimary
@@ -87,6 +88,7 @@ fun TasksScreen(
     onDeleteTask: (taskId: Long) -> Unit,
     onRestoreTask: ((taskId: Long) -> Unit)? = null,
     onEmptyArchive: (() -> Unit)? = null,
+    onQuickAddQuest: ((title: String, categoryName: String, priority: Priority) -> Unit)? = null,
     onCreateTaskClick: () -> Unit,
     onManageCategoriesClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -227,51 +229,73 @@ fun TasksScreen(
                 }
             }
 
-            // Hairline Progress Indicator for Today
-            if (uiState.todayTotalCount > 0 && uiState.selectedFilter != TaskFilter.COMPLETED) {
+            // Persistent Streak & Progress Header across all tabs (no layout shift)
+            val rawStreak = uiState.analyticsSummary?.currentStreak ?: 0
+            val streak = if (rawStreak > 0) rawStreak else if (uiState.completedTaskCount > 0) 1 else 0
+            val streakText = if (streak > 0) "${streak}d streak" else "0d streak"
+
+            val progressText = if (uiState.todayTotalCount > 0) {
+                "${uiState.todayCompletedCount}/${uiState.todayTotalCount} today (${(todayProgress * 100).toInt()}%)"
+            } else if (uiState.completedTaskCount + uiState.activeTaskCount > 0) {
+                "${uiState.completedTaskCount} completed • ${uiState.activeTaskCount} active"
+            } else {
+                "0/0 today (0%)"
+            }
+
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 18.dp, vertical = 2.dp)
+            ) {
                 Row(
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 18.dp, vertical = 2.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,
                     verticalAlignment = Alignment.CenterVertically
                 ) {
                     Text(
-                        text = "${uiState.todayCompletedCount}/${uiState.todayTotalCount} today (${(todayProgress * 100).toInt()}%)",
-                        fontSize = 10.sp,
+                        text = progressText,
+                        fontSize = 11.sp,
+                        fontWeight = FontWeight.Medium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
-                    if (uiState.analyticsSummary?.currentStreak ?: 0 > 0) {
-                        Row(verticalAlignment = Alignment.CenterVertically) {
-                            Icon(
-                                Icons.Default.LocalFireDepartment,
-                                contentDescription = null,
-                                tint = CyanAccent,
-                                modifier = Modifier.size(12.dp)
-                            )
-                            Spacer(modifier = Modifier.width(2.dp))
-                            Text(
-                                text = "${uiState.analyticsSummary?.currentStreak}d streak",
-                                fontSize = 10.sp,
-                                color = CyanAccent,
-                                fontWeight = FontWeight.Bold
-                            )
-                        }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.testTag("streak_display_badge")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.LocalFireDepartment,
+                            contentDescription = "Streak",
+                            tint = CyanAccent,
+                            modifier = Modifier.size(13.dp)
+                        )
+                        Spacer(modifier = Modifier.width(3.dp))
+                        Text(
+                            text = streakText,
+                            fontSize = 11.sp,
+                            color = CyanAccent,
+                            fontWeight = FontWeight.Bold
+                        )
                     }
                 }
+                Spacer(modifier = Modifier.height(4.dp))
                 LinearProgressIndicator(
-                    progress = { animatedTodayProgress },
+                    progress = {
+                        if (uiState.todayTotalCount > 0) {
+                            animatedTodayProgress
+                        } else if (uiState.completedTaskCount + uiState.activeTaskCount > 0) {
+                            uiState.completedTaskCount.toFloat() / (uiState.completedTaskCount + uiState.activeTaskCount).toFloat()
+                        } else 0f
+                    },
                     modifier = Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 18.dp)
                         .height(3.dp)
                         .clip(RoundedCornerShape(1.5.dp)),
-                    color = if (todayProgress >= 1f) MintSecondary else IndigoPrimary,
+                    color = if (todayProgress >= 1f && uiState.todayTotalCount > 0) MintSecondary else IndigoPrimary,
                     trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f),
                     strokeCap = StrokeCap.Round
                 )
-                Spacer(modifier = Modifier.height(4.dp))
             }
+            Spacer(modifier = Modifier.height(4.dp))
 
             // Expandable Search Bar
             AnimatedVisibility(visible = isSearchExpanded) {
@@ -291,16 +315,15 @@ fun TasksScreen(
                 )
             }
 
-            // Unified, minimal filter chips strip
-            LazyRow(
+            // Minimal 3-tab filter strip: Tasks, Completed, Archive
+            Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 18.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
                 verticalAlignment = Alignment.CenterVertically
             ) {
-                // Task state tabs: Tasks, Completed, Archive
-                items(TaskFilter.entries) { filter ->
+                TaskFilter.entries.forEach { filter ->
                     val isSelected = uiState.selectedFilter == filter
                     val countText = when (filter) {
                         TaskFilter.TASKS -> if (uiState.activeTaskCount > 0) " (${uiState.activeTaskCount})" else ""
@@ -308,24 +331,27 @@ fun TasksScreen(
                         TaskFilter.ARCHIVE -> if (uiState.archivedTaskCount > 0) " (${uiState.archivedTaskCount})" else ""
                     }
                     Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = if (isSelected) IndigoPrimary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
+                        shape = RoundedCornerShape(10.dp),
+                        color = if (isSelected) IndigoPrimary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                         modifier = Modifier
-                            .clickable { onSelectFilter(filter) }
+                            .clickable {
+                                onSelectCategory(null)
+                                onSelectFilter(filter)
+                            }
                             .testTag("filter_tab_${filter.name}")
                     ) {
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 10.dp, vertical = 5.dp)
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp)
                         ) {
                             Text(
                                 text = "${filter.title}$countText",
-                                fontSize = 11.sp,
+                                fontSize = 12.sp,
                                 fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                                 color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
                             )
                             if (filter == TaskFilter.TASKS && uiState.lateTaskCount > 0) {
-                                Spacer(modifier = Modifier.width(5.dp))
+                                Spacer(modifier = Modifier.width(6.dp))
                                 Box(
                                     modifier = Modifier
                                         .size(6.dp)
@@ -336,149 +362,76 @@ fun TasksScreen(
                         }
                     }
                 }
-
-                // Divider dot
-                item {
-                    Text("•", color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f), fontSize = 14.sp)
-                }
-
-                // Category chips
-                items(uiState.categories) { category ->
-                    val isSelected = uiState.selectedCategoryId == category.id
-                    val catColor = try {
-                        Color(android.graphics.Color.parseColor(category.colorHex))
-                    } catch (_: Exception) {
-                        IndigoPrimary
-                    }
-
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = if (isSelected) catColor else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                        modifier = Modifier
-                            .clickable { onSelectCategory(if (isSelected) null else category.id) }
-                            .testTag("filter_category_${category.id}")
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 9.dp, vertical = 5.dp)
-                        ) {
-                            Box(
-                                modifier = Modifier
-                                    .size(6.dp)
-                                    .clip(CircleShape)
-                                    .background(if (isSelected) Color.White else catColor)
-                            )
-                            Spacer(modifier = Modifier.width(5.dp))
-                            Text(
-                                text = category.name,
-                                fontSize = 11.sp,
-                                fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal,
-                                color = if (isSelected) Color.White else MaterialTheme.colorScheme.onSurface
-                            )
-                        }
-                    }
-                }
-
-                item {
-                    Surface(
-                        shape = RoundedCornerShape(8.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.6f),
-                        modifier = Modifier.clickable { onManageCategoriesClick() }
-                    ) {
-                        Row(
-                            verticalAlignment = Alignment.CenterVertically,
-                            modifier = Modifier.padding(horizontal = 8.dp, vertical = 5.dp)
-                        ) {
-                            Icon(Icons.Default.Add, contentDescription = "Add category", modifier = Modifier.size(12.dp))
-                            Spacer(modifier = Modifier.width(3.dp))
-                            Text("Category", fontSize = 11.sp)
-                        }
-                    }
-                }
             }
 
-            // Main Task List
-            LazyColumn(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(horizontal = 18.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-                contentPadding = PaddingValues(top = 6.dp, bottom = 80.dp)
-            ) {
-                // Next deadline hero card (minimal banner in Tasks tab)
-                if (uiState.nextDeadlineTask != null &&
-                    uiState.selectedFilter == TaskFilter.TASKS &&
-                    uiState.searchQuery.isBlank() &&
-                    uiState.selectedCategoryId == null
+            // Main Task Content: Centered Playful Empty State or Task List
+            if (uiState.filteredTasks.isEmpty()) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 18.dp),
+                    contentAlignment = Alignment.Center
                 ) {
-                    item(key = "next_deadline_hero") {
-                        NextDeadlineHero(
-                            taskItem = uiState.nextDeadlineTask,
-                            onComplete = { onToggleTask(it, true) },
-                            onReschedule = { onRescheduleTask(it) },
-                            onCardClick = { onEditTask(it) }
-                        )
-                        Spacer(modifier = Modifier.height(2.dp))
-                    }
+                    PlayfulEmptyState(
+                        currentFilter = uiState.selectedFilter,
+                        onCreateTaskClick = onCreateTaskClick
+                    )
                 }
-
-                // Archive header banner
-                if (uiState.selectedFilter == TaskFilter.ARCHIVE && uiState.filteredTasks.isNotEmpty()) {
-                    item(key = "archive_header_banner") {
-                        Row(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 4.dp),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically
-                        ) {
-                            Text(
-                                text = "Swipe right to restore, or left to delete forever.",
-                                fontSize = 11.sp,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
+            } else {
+                LazyColumn(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .padding(horizontal = 18.dp),
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    contentPadding = PaddingValues(top = 6.dp, bottom = 80.dp)
+                ) {
+                    // Next deadline hero card (minimal banner in Tasks tab)
+                    if (uiState.nextDeadlineTask != null &&
+                        uiState.selectedFilter == TaskFilter.TASKS &&
+                        uiState.searchQuery.isBlank() &&
+                        uiState.selectedCategoryId == null
+                    ) {
+                        item(key = "next_deadline_hero") {
+                            NextDeadlineHero(
+                                taskItem = uiState.nextDeadlineTask,
+                                onComplete = { onToggleTask(it, true) },
+                                onReschedule = { onRescheduleTask(it) },
+                                onCardClick = { onEditTask(it) }
                             )
-                            if (onEmptyArchive != null) {
+                            Spacer(modifier = Modifier.height(2.dp))
+                        }
+                    }
+
+                    // Archive header banner
+                    if (uiState.selectedFilter == TaskFilter.ARCHIVE) {
+                        item(key = "archive_header_banner") {
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(vertical = 4.dp),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically
+                            ) {
                                 Text(
-                                    text = "Empty Archive",
+                                    text = "Swipe right to restore, or left to delete forever.",
                                     fontSize = 11.sp,
-                                    fontWeight = FontWeight.Bold,
-                                    color = PriorityUrgent,
-                                    modifier = Modifier
-                                        .clickable { onEmptyArchive() }
-                                        .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
+                                if (onEmptyArchive != null) {
+                                    Text(
+                                        text = "Empty Archive",
+                                        fontSize = 11.sp,
+                                        fontWeight = FontWeight.Bold,
+                                        color = PriorityUrgent,
+                                        modifier = Modifier
+                                            .clickable { onEmptyArchive() }
+                                            .padding(horizontal = 6.dp, vertical = 2.dp)
+                                    )
+                                }
                             }
                         }
                     }
-                }
 
-                if (uiState.filteredTasks.isEmpty()) {
-                    item {
-                        Column(
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 48.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally
-                        ) {
-                            Icon(
-                                imageVector = Icons.Default.CheckCircle,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.4f),
-                                modifier = Modifier.size(36.dp)
-                            )
-                            Spacer(modifier = Modifier.height(10.dp))
-                            Text(
-                                text = when (uiState.selectedFilter) {
-                                    TaskFilter.COMPLETED -> "No completed tasks yet"
-                                    TaskFilter.ARCHIVE -> "Archive is empty\nRemoved tasks will appear here"
-                                    TaskFilter.TASKS -> "All caught up!\nTap + to add a task"
-                                },
-                                style = MaterialTheme.typography.bodyMedium.copy(fontWeight = FontWeight.SemiBold),
-                                color = MaterialTheme.colorScheme.onSurfaceVariant
-                            )
-                        }
-                    }
-                } else {
                     items(uiState.filteredTasks, key = { it.task.id }) { taskItem ->
                         TaskCard(
                             taskItem = taskItem,

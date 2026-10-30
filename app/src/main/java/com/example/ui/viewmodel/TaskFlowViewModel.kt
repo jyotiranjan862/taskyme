@@ -212,6 +212,12 @@ class TaskFlowViewModel(
         initialValue = TaskFlowUiState()
     )
 
+    init {
+        viewModelScope.launch {
+            taskRepository.cleanupLegacyDemoTasks()
+        }
+    }
+
     fun setFilter(filter: TaskFilter) {
         _selectedFilter.value = filter
     }
@@ -325,6 +331,35 @@ class TaskFlowViewModel(
             )
             taskRepository.createTask(task, subtasks)
         }
+    }
+
+    fun addQuickQuest(title: String, categoryName: String, priority: Priority = Priority.MEDIUM) {
+        val categories = uiState.value.categories
+        val matchedCategory = categories.firstOrNull { it.name.equals(categoryName, ignoreCase = true) }
+            ?: categories.firstOrNull()
+        val categoryId = matchedCategory?.id ?: 1L
+
+        val cal = Calendar.getInstance().apply {
+            set(Calendar.HOUR_OF_DAY, 20)
+            set(Calendar.MINUTE, 0)
+            set(Calendar.SECOND, 0)
+            set(Calendar.MILLISECOND, 0)
+        }
+
+        createTask(
+            title = title,
+            description = "Daily quest to build habit streak",
+            categoryId = categoryId,
+            priority = priority,
+            deadlineTimestamp = cal.timeInMillis,
+            hasSpecificTime = false,
+            reminderMinutesBefore = 0,
+            isPersistentNotification = false,
+            recurringRule = null,
+            estimatedDurationMinutes = 15,
+            tags = "Quest",
+            subtasks = emptyList()
+        )
     }
 
     fun updateTask(

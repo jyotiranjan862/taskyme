@@ -185,6 +185,9 @@ fun MainAppContent(
                     onDeleteTask = { viewModel.deleteTask(it) },
                     onRestoreTask = { viewModel.unarchiveTask(it) },
                     onEmptyArchive = { viewModel.emptyArchive() },
+                    onQuickAddQuest = { title, category, priority ->
+                        viewModel.addQuickQuest(title, category, priority)
+                    },
                     onCreateTaskClick = {
                         taskToEdit = null
                         showCreateSheet = true
