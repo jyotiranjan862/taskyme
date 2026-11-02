@@ -45,7 +45,7 @@ fun TaskFlowBottomBar(
     modifier: Modifier = Modifier
 ) {
     val isDark = isSystemInDarkTheme()
-    val activeContentColor = BrandPrimary
+    val activeContentColor = MaterialTheme.colorScheme.primary
     val inactiveContentColor = if (isDark) Color(0xFF94A3B8) else Color(0xFF64748B)
     val barBackground = MaterialTheme.colorScheme.surface
     val dividerColor = if (isDark) Color(0xFF1E293B) else Color(0xFFE2E8F0)

@@ -96,7 +96,7 @@ fun AchievementCelebrationDialog(
             Button(
                 onClick = onDismiss,
                 modifier = Modifier.fillMaxWidth(),
-                colors = ButtonDefaults.buttonColors(containerColor = IndigoPrimary),
+                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                 shape = RoundedCornerShape(12.dp)
             ) {
                 Text("Awesome!", fontWeight = FontWeight.Bold)

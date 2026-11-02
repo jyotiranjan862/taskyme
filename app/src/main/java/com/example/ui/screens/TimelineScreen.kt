@@ -151,7 +151,7 @@ fun TimelineScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = onCreateTaskClick,
-                containerColor = IndigoPrimary,
+                containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = Color.White,
                 shape = CircleShape,
                 modifier = Modifier
@@ -227,7 +227,7 @@ fun TimelineScreen(
 
                     Surface(
                         shape = RoundedCornerShape(16.dp),
-                        color = if (isSelected) IndigoPrimary else MaterialTheme.colorScheme.surface,
+                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
                         border = if (!isSelected) BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)) else null,
                         tonalElevation = if (isSelected) 4.dp else 1.dp,
                         modifier = Modifier
@@ -264,7 +264,7 @@ fun TimelineScreen(
                                     .background(
                                         when {
                                             isSelected -> Color.White
-                                            day.hasTasks -> IndigoPrimary
+                                            day.hasTasks -> MaterialTheme.colorScheme.primary
                                             else -> Color.Transparent
                                         }
                                     )
@@ -336,13 +336,13 @@ fun TimelineScreen(
 
                                     Surface(
                                         shape = RoundedCornerShape(6.dp),
-                                        color = IndigoPrimary.copy(alpha = 0.12f)
+                                        color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
                                     ) {
                                         Text(
                                             text = dayItem.relativeLabel,
                                             fontSize = 10.sp,
                                             fontWeight = FontWeight.Bold,
-                                            color = IndigoPrimary,
+                                            color = MaterialTheme.colorScheme.primary,
                                             modifier = Modifier.padding(horizontal = 7.dp, vertical = 2.dp)
                                         )
                                     }

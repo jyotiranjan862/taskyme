@@ -87,7 +87,7 @@ fun NextDeadlineHero(
         color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
         border = BorderStroke(
             width = 1.dp,
-            color = if (isOverdue) PriorityUrgent.copy(alpha = 0.35f) else IndigoPrimary.copy(alpha = 0.25f)
+            color = if (isOverdue) PriorityUrgent.copy(alpha = 0.35f) else MaterialTheme.colorScheme.primary.copy(alpha = 0.25f)
         )
     ) {
         Row(

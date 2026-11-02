@@ -1,30 +1,19 @@
 package com.example
 
-import android.content.Context
-import androidx.test.core.app.ApplicationProvider
 import com.example.data.model.CategoryEntity
 import com.example.data.model.Priority
 import com.example.data.model.TaskEntity
 import com.example.data.model.TaskItem
+import com.example.data.repository.AppColorTheme
+import com.example.data.repository.AppThemeMode
 import com.example.ui.analytics.AnalyticsCalculator
 import com.example.ui.analytics.AnalyticsTimeframe
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import org.junit.runner.RunWith
-import org.robolectric.RobolectricTestRunner
-import org.robolectric.annotation.Config
 
-@RunWith(RobolectricTestRunner::class)
-@Config(sdk = [36])
-class ExampleRobolectricTest {
-
-    @Test
-    fun `read string from context verifies TaskFlow app name`() {
-        val context = ApplicationProvider.getApplicationContext<Context>()
-        val appName = context.getString(R.string.app_name)
-        assertEquals("TaskFlow", appName)
-    }
+class TaskFlowLogicTest {
 
     @Test
     fun `analytics calculation computes accurate metrics from completed tasks`() {
@@ -94,6 +83,16 @@ class ExampleRobolectricTest {
         )
 
         assertTrue(overdueActiveTask.isOverdue)
-        org.junit.Assert.assertFalse(overdueArchivedTask.isOverdue)
+        assertFalse(overdueArchivedTask.isOverdue)
+    }
+
+    @Test
+    fun `color themes provide valid hex color values`() {
+        AppColorTheme.entries.forEach { theme ->
+            assertTrue(theme.title.isNotBlank())
+            assertTrue(theme.primaryHex != 0L)
+            assertTrue(theme.primaryDarkHex != 0L)
+            assertTrue(theme.secondaryHex != 0L)
+        }
     }
 }

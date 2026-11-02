@@ -141,7 +141,7 @@ fun AchievementsScreen(
 
             Surface(
                 shape = RoundedCornerShape(12.dp),
-                color = IndigoPrimary.copy(alpha = 0.12f)
+                color = MaterialTheme.colorScheme.primary.copy(alpha = 0.12f)
             ) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
@@ -151,14 +151,14 @@ fun AchievementsScreen(
                         modifier = Modifier
                             .size(6.dp)
                             .clip(CircleShape)
-                            .background(IndigoPrimary)
+                            .background(MaterialTheme.colorScheme.primary)
                     )
                     Spacer(modifier = Modifier.width(6.dp))
                     Text(
                         text = "$unlockedCount/$totalCount Unlocked",
                         fontSize = 11.5.sp,
                         fontWeight = FontWeight.Bold,
-                        color = IndigoPrimary
+                        color = MaterialTheme.colorScheme.primary
                     )
                 }
             }
@@ -169,7 +169,7 @@ fun AchievementsScreen(
         // Current Rank Banner Card matching Screen 2 mockup
         Surface(
             shape = RoundedCornerShape(18.dp),
-            color = IndigoPrimary,
+            color = MaterialTheme.colorScheme.primary,
             modifier = Modifier.fillMaxWidth()
         ) {
             Column(modifier = Modifier.padding(16.dp)) {
@@ -278,10 +278,10 @@ fun AchievementsScreen(
                 val isSelected = selectedCategory == cat
                 Surface(
                     shape = RoundedCornerShape(12.dp),
-                    color = if (isSelected) IndigoPrimary else MaterialTheme.colorScheme.surface,
+                    color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
                     border = BorderStroke(
                         1.dp,
-                        if (isSelected) IndigoPrimary else MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
+                        if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
                     ),
                     modifier = Modifier.clickable { selectedCategory = cat }
                 ) {
@@ -407,7 +407,7 @@ fun AchievementsScreen(
             confirmButton = {
                 Button(
                     onClick = { selectedBadgeDetail = null },
-                    colors = ButtonDefaults.buttonColors(containerColor = IndigoPrimary),
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                     shape = RoundedCornerShape(12.dp),
                     modifier = Modifier.fillMaxWidth()
                 ) {

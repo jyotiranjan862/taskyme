@@ -59,7 +59,7 @@ fun AnalyticsScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = onCreateTaskClick,
-                containerColor = IndigoPrimary,
+                containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = Color.White,
                 shape = CircleShape,
                 modifier = Modifier
@@ -125,7 +125,7 @@ fun AnalyticsScreen(
                     val isSelected = currentTimeframe == tf
                     Surface(
                         shape = RoundedCornerShape(10.dp),
-                        color = if (isSelected) IndigoPrimary else MaterialTheme.colorScheme.surface,
+                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surface,
                         border = if (!isSelected) BorderStroke(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)) else null,
                         modifier = Modifier
                             .weight(1f)
@@ -164,7 +164,7 @@ fun AnalyticsScreen(
                 MetricCardWithAccent(
                     title = "On-time",
                     value = "${summary.onTimeCompletionRate.toInt()}%",
-                    accentColor = IndigoPrimary,
+                    accentColor = MaterialTheme.colorScheme.primary,
                     modifier = Modifier.weight(1f)
                 )
 

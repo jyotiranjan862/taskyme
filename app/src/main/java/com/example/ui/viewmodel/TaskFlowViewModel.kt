@@ -12,6 +12,7 @@ import com.example.data.model.Priority
 import com.example.data.model.SubtaskEntity
 import com.example.data.model.TaskEntity
 import com.example.data.model.TaskItem
+import com.example.data.repository.AppColorTheme
 import com.example.data.repository.AppThemeMode
 import com.example.data.repository.PreferencesRepository
 import com.example.data.repository.TaskRepository
@@ -69,6 +70,7 @@ class TaskFlowViewModel(
 ) : AndroidViewModel(application) {
 
     val themeMode: StateFlow<AppThemeMode> = preferencesRepository.themeMode
+    val colorTheme: StateFlow<AppColorTheme> = preferencesRepository.colorTheme
 
     private val _selectedFilter = MutableStateFlow(TaskFilter.TASKS)
     val selectedFilter = _selectedFilter.asStateFlow()
@@ -244,6 +246,10 @@ class TaskFlowViewModel(
 
     fun setThemeMode(mode: AppThemeMode) {
         preferencesRepository.setThemeMode(mode)
+    }
+
+    fun setColorTheme(theme: AppColorTheme) {
+        preferencesRepository.setColorTheme(theme)
     }
 
     fun dismissAchievementCelebration() {

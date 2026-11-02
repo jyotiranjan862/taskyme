@@ -49,7 +49,6 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.Priority
 import com.example.ui.theme.CyanAccent
-import com.example.ui.theme.IndigoPrimary
 import com.example.ui.viewmodel.TaskFilter
 import kotlin.math.sin
 

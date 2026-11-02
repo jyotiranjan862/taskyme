@@ -1,68 +1,87 @@
 package com.example.ui.theme
 
 import androidx.compose.foundation.isSystemInDarkTheme
+import androidx.compose.material3.ColorScheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
+import com.example.data.repository.AppColorTheme
 
-val TaskFlowDarkScheme = darkColorScheme(
-    primary = IndigoLight,
-    onPrimary = Color(0xFF00194B),
-    primaryContainer = Color(0xFF22357A),
-    onPrimaryContainer = Color(0xFFDCE1FF),
-    secondary = MintSecondary,
-    onSecondary = Color(0xFF00382E),
-    secondaryContainer = Color(0xFF005144),
-    onSecondaryContainer = Color(0xFF70F8DD),
-    tertiary = CoralTertiary,
-    onTertiary = Color(0xFF5A1A06),
-    tertiaryContainer = Color(0xFF7F280D),
-    onTertiaryContainer = Color(0xFFFFDBD1),
-    background = DarkBackground,
-    onBackground = DarkTextPrimary,
-    surface = DarkSurface,
-    onSurface = DarkTextPrimary,
-    surfaceVariant = DarkSurfaceElevated,
-    onSurfaceVariant = DarkTextSecondary,
-    outline = DarkCardBorder,
-    outlineVariant = Color(0xFF1E2436),
-    error = PriorityUrgent,
-    onError = Color.White
-)
+fun getTaskFlowColorScheme(
+    darkTheme: Boolean,
+    colorTheme: AppColorTheme
+): ColorScheme {
+    val primaryColor = Color(if (darkTheme) colorTheme.primaryDarkHex else colorTheme.primaryHex)
+    val secondaryColor = Color(colorTheme.secondaryHex)
 
-val TaskFlowLightScheme = lightColorScheme(
-    primary = IndigoPrimary,
-    onPrimary = Color.White,
-    primaryContainer = Color(0xFFE0E6FF),
-    onPrimaryContainer = Color(0xFF081C61),
-    secondary = Color(0xFF008975),
-    onSecondary = Color.White,
-    secondaryContainer = Color(0xFFB8F3E7),
-    onSecondaryContainer = Color(0xFF00201A),
-    tertiary = Color(0xFFC84521),
-    onTertiary = Color.White,
-    tertiaryContainer = Color(0xFFFFDBD1),
-    onTertiaryContainer = Color(0xFF3B0B00),
-    background = LightBackground,
-    onBackground = LightTextPrimary,
-    surface = LightSurface,
-    onSurface = LightTextPrimary,
-    surfaceVariant = LightSurfaceElevated,
-    onSurfaceVariant = LightTextSecondary,
-    outline = LightCardBorder,
-    outlineVariant = Color(0xFFE2E7F0),
-    error = PriorityUrgent,
-    onError = Color.White
-)
+    return if (darkTheme) {
+        darkColorScheme(
+            primary = primaryColor,
+            onPrimary = Color(0xFF060914),
+            primaryContainer = primaryColor.copy(alpha = 0.22f),
+            onPrimaryContainer = Color(0xFFE2E8F0),
+            secondary = secondaryColor,
+            onSecondary = Color(0xFF021B14),
+            secondaryContainer = secondaryColor.copy(alpha = 0.2f),
+            onSecondaryContainer = Color(0xFFD1FAE5),
+            tertiary = CoralTertiary,
+            onTertiary = Color(0xFF431407),
+            tertiaryContainer = Color(0xFF7C2D12),
+            onTertiaryContainer = Color(0xFFFFEDD5),
+            background = DarkBackground,
+            onBackground = DarkTextPrimary,
+            surface = DarkSurface,
+            onSurface = DarkTextPrimary,
+            surfaceVariant = DarkSurfaceElevated,
+            onSurfaceVariant = DarkTextSecondary,
+            outline = DarkCardBorder,
+            outlineVariant = Color(0xFF1E283E),
+            error = PriorityUrgent,
+            onError = Color.White
+        )
+    } else {
+        lightColorScheme(
+            primary = primaryColor,
+            onPrimary = Color.White,
+            primaryContainer = primaryColor.copy(alpha = 0.12f),
+            onPrimaryContainer = primaryColor,
+            secondary = secondaryColor,
+            onSecondary = Color.White,
+            secondaryContainer = secondaryColor.copy(alpha = 0.12f),
+            onSecondaryContainer = Color(0xFF065F46),
+            tertiary = CoralTertiary,
+            onTertiary = Color.White,
+            tertiaryContainer = Color(0xFFFFEDD5),
+            onTertiaryContainer = Color(0xFF9A3412),
+            background = LightBackground,
+            onBackground = LightTextPrimary,
+            surface = LightSurface,
+            onSurface = LightTextPrimary,
+            surfaceVariant = LightSurfaceElevated,
+            onSurfaceVariant = LightTextSecondary,
+            outline = LightCardBorder,
+            outlineVariant = Color(0xFFE2E8F0),
+            error = PriorityUrgent,
+            onError = Color.White
+        )
+    }
+}
+
+val TaskFlowDarkScheme = getTaskFlowColorScheme(true, AppColorTheme.INDIGO)
+val TaskFlowLightScheme = getTaskFlowColorScheme(false, AppColorTheme.INDIGO)
 
 @Composable
 fun TaskFlowTheme(
     darkTheme: Boolean = isSystemInDarkTheme(),
+    colorTheme: AppColorTheme = AppColorTheme.INDIGO,
     content: @Composable () -> Unit
 ) {
-    val colorScheme = if (darkTheme) TaskFlowDarkScheme else TaskFlowLightScheme
+    val colorScheme = remember(darkTheme, colorTheme) {
+        getTaskFlowColorScheme(darkTheme, colorTheme)
+    }
 
     MaterialTheme(
         colorScheme = colorScheme,
@@ -70,3 +89,4 @@ fun TaskFlowTheme(
         content = content
     )
 }
+

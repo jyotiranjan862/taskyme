@@ -223,7 +223,7 @@ fun CategoryManagementDialog(
                     modifier = Modifier
                         .fillMaxWidth()
                         .testTag("add_category_submit_btn"),
-                    colors = ButtonDefaults.buttonColors(containerColor = IndigoPrimary)
+                    colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary)
                 ) {
                     Icon(Icons.Default.Add, contentDescription = null, modifier = Modifier.size(16.dp))
                     Spacer(modifier = Modifier.width(6.dp))

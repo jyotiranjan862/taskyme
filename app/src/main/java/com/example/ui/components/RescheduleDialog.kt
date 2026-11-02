@@ -186,7 +186,7 @@ private fun RescheduleOptionItem(
             Icon(
                 imageVector = icon,
                 contentDescription = null,
-                tint = if (isDestructive) PriorityUrgent else IndigoPrimary,
+                tint = if (isDestructive) PriorityUrgent else MaterialTheme.colorScheme.primary,
                 modifier = Modifier.size(20.dp)
             )
             Spacer(modifier = Modifier.width(12.dp))

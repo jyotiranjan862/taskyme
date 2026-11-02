@@ -65,7 +65,7 @@ fun TasksCompletedLineChart(
     }
 
     val textPaintColor = MaterialTheme.colorScheme.onSurfaceVariant.toArgb()
-    val lineColor = IndigoPrimary
+    val lineColor = MaterialTheme.colorScheme.primary
     val animProgress = remember { Animatable(0f) }
 
     LaunchedEffect(data) {
@@ -238,6 +238,8 @@ fun CategoryDonutChartCard(
     totalTasks: Int,
     modifier: Modifier = Modifier
 ) {
+    val defaultColor = MaterialTheme.colorScheme.primary
+
     Row(
         modifier = modifier
             .fillMaxWidth()
@@ -268,7 +270,7 @@ fun CategoryDonutChartCard(
                         val color = try {
                             Color(android.graphics.Color.parseColor(cat.colorHex))
                         } catch (_: Exception) {
-                            IndigoPrimary
+                            defaultColor
                         }
 
                         if (sweep > 0f) {
@@ -308,7 +310,7 @@ fun CategoryDonutChartCard(
                 val color = try {
                     Color(android.graphics.Color.parseColor(cat.colorHex))
                 } catch (_: Exception) {
-                    IndigoPrimary
+                    MaterialTheme.colorScheme.primary
                 }
 
                 Row(

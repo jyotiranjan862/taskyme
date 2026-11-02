@@ -46,6 +46,7 @@ import androidx.compose.ui.unit.sp
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.example.data.model.TaskItem
+import com.example.data.repository.AppColorTheme
 import com.example.data.repository.AppThemeMode
 import com.example.ui.components.AchievementCelebrationDialog
 import com.example.ui.components.CategoryManagementDialog
@@ -83,16 +84,18 @@ class MainActivity : ComponentActivity() {
 
         setContent {
             val themeMode by viewModel.themeMode.collectAsStateWithLifecycle()
+            val colorTheme by viewModel.colorTheme.collectAsStateWithLifecycle()
             val isDarkTheme = when (themeMode) {
                 AppThemeMode.DARK -> true
                 AppThemeMode.LIGHT -> false
                 AppThemeMode.SYSTEM -> isSystemInDarkTheme()
             }
 
-            TaskFlowTheme(darkTheme = isDarkTheme) {
+            TaskFlowTheme(darkTheme = isDarkTheme, colorTheme = colorTheme) {
                 MainAppContent(
                     viewModel = viewModel,
                     themeMode = themeMode,
+                    colorTheme = colorTheme,
                     onToggleTheme = {
                         val nextMode = when (themeMode) {
                             AppThemeMode.DARK -> AppThemeMode.LIGHT
@@ -100,7 +103,9 @@ class MainActivity : ComponentActivity() {
                             AppThemeMode.SYSTEM -> AppThemeMode.DARK
                         }
                         viewModel.setThemeMode(nextMode)
-                    }
+                    },
+                    onSelectColorTheme = { viewModel.setColorTheme(it) },
+                    onSelectThemeMode = { viewModel.setThemeMode(it) }
                 )
             }
         }
@@ -111,7 +116,10 @@ class MainActivity : ComponentActivity() {
 fun MainAppContent(
     viewModel: TaskFlowViewModel,
     themeMode: AppThemeMode,
-    onToggleTheme: () -> Unit
+    colorTheme: AppColorTheme,
+    onToggleTheme: () -> Unit,
+    onSelectColorTheme: (AppColorTheme) -> Unit,
+    onSelectThemeMode: (AppThemeMode) -> Unit
 ) {
     val context = LocalContext.current
     val uiState by viewModel.uiState.collectAsStateWithLifecycle()
@@ -170,7 +178,10 @@ fun MainAppContent(
                 0 -> TasksScreen(
                     uiState = uiState,
                     themeMode = themeMode,
+                    colorTheme = colorTheme,
                     onToggleTheme = onToggleTheme,
+                    onSelectColorTheme = onSelectColorTheme,
+                    onSelectThemeMode = onSelectThemeMode,
                     onSelectFilter = { viewModel.setFilter(it) },
                     onSelectCategory = { viewModel.setCategoryFilter(it) },
                     onSelectSort = { viewModel.setSortOption(it) },

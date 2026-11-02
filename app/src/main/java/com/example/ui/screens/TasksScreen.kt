@@ -27,6 +27,7 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.DarkMode
 import androidx.compose.material.icons.filled.LightMode
 import androidx.compose.material.icons.filled.LocalFireDepartment
+import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Sort
 import androidx.compose.material3.DropdownMenu
@@ -57,10 +58,12 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.example.data.model.Priority
 import com.example.data.model.TaskItem
+import com.example.data.repository.AppColorTheme
 import com.example.data.repository.AppThemeMode
 import com.example.ui.components.NextDeadlineHero
 import com.example.ui.components.PlayfulEmptyState
 import com.example.ui.components.TaskCard
+import com.example.ui.components.ThemeColorPickerDialog
 import com.example.ui.theme.CyanAccent
 import com.example.ui.theme.IndigoPrimary
 import com.example.ui.theme.MintSecondary
@@ -76,7 +79,10 @@ import java.util.Locale
 fun TasksScreen(
     uiState: TaskFlowUiState,
     themeMode: AppThemeMode,
+    colorTheme: AppColorTheme = AppColorTheme.INDIGO,
     onToggleTheme: () -> Unit,
+    onSelectColorTheme: (AppColorTheme) -> Unit = {},
+    onSelectThemeMode: (AppThemeMode) -> Unit = {},
     onSelectFilter: (TaskFilter) -> Unit,
     onSelectCategory: (Long?) -> Unit,
     onSelectSort: (TaskSort) -> Unit,
@@ -95,6 +101,7 @@ fun TasksScreen(
 ) {
     var isSearchExpanded by remember { mutableStateOf(false) }
     var showSortMenu by remember { mutableStateOf(false) }
+    var showThemePicker by remember { mutableStateOf(false) }
 
     val todayProgress = remember(uiState.todayCompletedCount, uiState.todayTotalCount) {
         if (uiState.todayTotalCount > 0) {
@@ -114,7 +121,7 @@ fun TasksScreen(
         floatingActionButton = {
             FloatingActionButton(
                 onClick = onCreateTaskClick,
-                containerColor = IndigoPrimary,
+                containerColor = MaterialTheme.colorScheme.primary,
                 contentColor = Color.White,
                 shape = CircleShape,
                 modifier = Modifier
@@ -186,6 +193,20 @@ fun TasksScreen(
                             imageVector = if (themeMode == AppThemeMode.DARK) Icons.Default.LightMode else Icons.Default.DarkMode,
                             contentDescription = "Theme",
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(19.dp)
+                        )
+                    }
+
+                    IconButton(
+                        onClick = { showThemePicker = true },
+                        modifier = Modifier
+                            .size(36.dp)
+                            .testTag("color_theme_picker_btn")
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.Palette,
+                            contentDescription = "Color Theme",
+                            tint = MaterialTheme.colorScheme.primary,
                             modifier = Modifier.size(19.dp)
                         )
                     }
@@ -290,7 +311,7 @@ fun TasksScreen(
                         .fillMaxWidth()
                         .height(3.dp)
                         .clip(RoundedCornerShape(1.5.dp)),
-                    color = if (todayProgress >= 1f && uiState.todayTotalCount > 0) MintSecondary else IndigoPrimary,
+                    color = if (todayProgress >= 1f && uiState.todayTotalCount > 0) MintSecondary else MaterialTheme.colorScheme.primary,
                     trackColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.15f),
                     strokeCap = StrokeCap.Round
                 )
@@ -306,7 +327,7 @@ fun TasksScreen(
                     singleLine = true,
                     shape = RoundedCornerShape(10.dp),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedBorderColor = IndigoPrimary
+                        focusedBorderColor = MaterialTheme.colorScheme.primary
                     ),
                     modifier = Modifier
                         .fillMaxWidth()
@@ -332,7 +353,7 @@ fun TasksScreen(
                     }
                     Surface(
                         shape = RoundedCornerShape(10.dp),
-                        color = if (isSelected) IndigoPrimary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
+                        color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
                         modifier = Modifier
                             .clickable {
                                 onSelectCategory(null)
@@ -447,5 +468,15 @@ fun TasksScreen(
                 }
             }
         }
+    }
+
+    if (showThemePicker) {
+        ThemeColorPickerDialog(
+            currentThemeMode = themeMode,
+            currentColorTheme = colorTheme,
+            onSelectThemeMode = onSelectThemeMode,
+            onSelectColorTheme = onSelectColorTheme,
+            onDismiss = { showThemePicker = false }
+        )
     }
 }

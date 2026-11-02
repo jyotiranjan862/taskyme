@@ -301,7 +301,7 @@ fun TaskCreateEditSheet(
                 ) {
                     Text(
                         text = "Save",
-                        color = if (title.isNotBlank()) IndigoPrimary else MaterialTheme.colorScheme.outline.copy(alpha = 0.45f),
+                        color = if (title.isNotBlank()) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.45f),
                         fontWeight = FontWeight.ExtraBold,
                         fontSize = 15.5.sp
                     )
@@ -362,7 +362,7 @@ fun TaskCreateEditSheet(
                                 .fillMaxWidth()
                                 .testTag("task_title_input"),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = IndigoPrimary,
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
                                 unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)
                             )
                         )
@@ -400,7 +400,7 @@ fun TaskCreateEditSheet(
                                 .fillMaxWidth()
                                 .testTag("task_description_input"),
                             colors = OutlinedTextFieldDefaults.colors(
-                                focusedBorderColor = IndigoPrimary,
+                                focusedBorderColor = MaterialTheme.colorScheme.primary,
                                 unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.45f)
                             )
                         )
@@ -427,15 +427,15 @@ fun TaskCreateEditSheet(
                                 val catColor = try {
                                     Color(android.graphics.Color.parseColor(category.colorHex))
                                 } catch (_: Exception) {
-                                    IndigoPrimary
+                                    MaterialTheme.colorScheme.primary
                                 }
 
                                 Surface(
                                     shape = RoundedCornerShape(20.dp),
-                                    color = if (isSelected) IndigoPrimary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surface,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surface,
                                     border = BorderStroke(
                                         1.dp,
-                                        if (isSelected) IndigoPrimary else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
+                                        if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
                                     ),
                                     modifier = Modifier
                                         .clickable { selectedCategoryId = category.id }
@@ -456,7 +456,7 @@ fun TaskCreateEditSheet(
                                             text = category.name,
                                             fontSize = 12.5.sp,
                                             fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
-                                            color = if (isSelected) IndigoPrimary else MaterialTheme.colorScheme.onSurface
+                                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                                         )
                                     }
                                 }
@@ -520,10 +520,10 @@ fun TaskCreateEditSheet(
 
                                 Surface(
                                     shape = RoundedCornerShape(12.dp),
-                                    color = if (isSelected) IndigoPrimary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surface,
+                                    color = if (isSelected) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surface,
                                     border = BorderStroke(
                                         1.dp,
-                                        if (isSelected) IndigoPrimary else MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
+                                        if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
                                     ),
                                     modifier = Modifier
                                         .weight(1f)
@@ -546,7 +546,7 @@ fun TaskCreateEditSheet(
                                             text = p.title,
                                             fontSize = 12.sp,
                                             fontWeight = if (isSelected) FontWeight.ExtraBold else FontWeight.Medium,
-                                            color = if (isSelected) IndigoPrimary else MaterialTheme.colorScheme.onSurface
+                                            color = if (isSelected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface
                                         )
                                     }
                                 }
@@ -660,7 +660,7 @@ fun TaskCreateEditSheet(
                                     Icon(
                                         imageVector = Icons.Default.CalendarToday,
                                         contentDescription = "Pick date",
-                                        tint = IndigoPrimary,
+                                        tint = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
@@ -710,7 +710,7 @@ fun TaskCreateEditSheet(
                                     Icon(
                                         imageVector = Icons.Default.Schedule,
                                         contentDescription = "Pick time",
-                                        tint = IndigoPrimary,
+                                        tint = MaterialTheme.colorScheme.primary,
                                         modifier = Modifier.size(16.dp)
                                     )
                                     Spacer(modifier = Modifier.width(8.dp))
@@ -758,7 +758,7 @@ fun TaskCreateEditSheet(
                                             else -> "$reminderMinutesSelected mins before"
                                         },
                                         fontSize = 11.sp,
-                                        color = IndigoPrimary
+                                        color = MaterialTheme.colorScheme.primary
                                     )
                                 }
                             }
@@ -767,7 +767,7 @@ fun TaskCreateEditSheet(
                                 onCheckedChange = { reminderEnabled = it },
                                 colors = SwitchDefaults.colors(
                                     checkedThumbColor = Color.White,
-                                    checkedTrackColor = IndigoPrimary
+                                    checkedTrackColor = MaterialTheme.colorScheme.primary
                                 ),
                                 modifier = Modifier.testTag("reminder_switch")
                             )
@@ -784,10 +784,10 @@ fun TaskCreateEditSheet(
                                     val isSel = reminderMinutesSelected == mins
                                     Surface(
                                         shape = RoundedCornerShape(12.dp),
-                                        color = if (isSel) IndigoPrimary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surface,
+                                        color = if (isSel) MaterialTheme.colorScheme.primary.copy(alpha = 0.12f) else MaterialTheme.colorScheme.surface,
                                         border = BorderStroke(
                                             1.dp,
-                                            if (isSel) IndigoPrimary else MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
+                                            if (isSel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline.copy(alpha = 0.35f)
                                         ),
                                         modifier = Modifier.clickable { reminderMinutesSelected = mins }
                                     ) {
@@ -795,7 +795,7 @@ fun TaskCreateEditSheet(
                                             text = label,
                                             fontSize = 11.5.sp,
                                             fontWeight = if (isSel) FontWeight.Bold else FontWeight.Normal,
-                                            color = if (isSel) IndigoPrimary else MaterialTheme.colorScheme.onSurface,
+                                            color = if (isSel) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                                             modifier = Modifier.padding(horizontal = 12.dp, vertical = 5.dp)
                                         )
                                     }
@@ -827,7 +827,7 @@ fun TaskCreateEditSheet(
                                 Icon(
                                     imageVector = Icons.Default.Check,
                                     contentDescription = null,
-                                    tint = IndigoPrimary,
+                                    tint = MaterialTheme.colorScheme.primary,
                                     modifier = Modifier.size(14.dp)
                                 )
                                 Spacer(modifier = Modifier.width(8.dp))
@@ -883,7 +883,7 @@ fun TaskCreateEditSheet(
                                 shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier.weight(1f),
                                 colors = OutlinedTextFieldDefaults.colors(
-                                    focusedBorderColor = IndigoPrimary,
+                                    focusedBorderColor = MaterialTheme.colorScheme.primary,
                                     unfocusedBorderColor = MaterialTheme.colorScheme.outline.copy(alpha = 0.4f)
                                 )
                             )
@@ -895,7 +895,7 @@ fun TaskCreateEditSheet(
                                         newSubtaskText = ""
                                     }
                                 },
-                                colors = ButtonDefaults.buttonColors(containerColor = IndigoPrimary),
+                                colors = ButtonDefaults.buttonColors(containerColor = MaterialTheme.colorScheme.primary),
                                 shape = RoundedCornerShape(12.dp),
                                 modifier = Modifier.height(48.dp)
                             ) {
@@ -921,9 +921,9 @@ fun TaskCreateEditSheet(
                                 .testTag("create_task_submit_btn"),
                             shape = RoundedCornerShape(26.dp),
                             colors = ButtonDefaults.buttonColors(
-                                containerColor = IndigoPrimary,
+                                containerColor = MaterialTheme.colorScheme.primary,
                                 contentColor = Color.White,
-                                disabledContainerColor = IndigoPrimary.copy(alpha = 0.4f),
+                                disabledContainerColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.4f),
                                 disabledContentColor = Color.White.copy(alpha = 0.7f)
                             ),
                             elevation = ButtonDefaults.buttonElevation(
